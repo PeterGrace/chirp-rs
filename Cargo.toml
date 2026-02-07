@@ -1,0 +1,40 @@
+[package]
+name = "chirp-rs"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "chirp-rs"
+path = "src/main.rs"
+required-features = ["gui"]
+
+[dependencies]
+anyhow = "1.0.101"
+base64 = "0.22.1"
+inventory = "0.3.21"
+lazy_static = "1.5.0"
+nom = "8.0.0"
+regex = "1.12.3"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+serialport = "4.8.1"
+thiserror = "2.0.18"
+tokio = { version = "1.49.0", features = ["full"] }
+
+[dev-dependencies]
+base64 = "0.22.1"
+tempfile = "3.24.0"
+
+[features]
+default = []
+gui = ["dep:iced", "dep:rfd"]
+
+# GUI dependencies (optional, enabled with --features gui)
+[dependencies.iced]
+version = "0.12"
+features = ["tokio", "advanced"]
+optional = true
+
+[dependencies.rfd]
+version = "0.14"
+optional = true
