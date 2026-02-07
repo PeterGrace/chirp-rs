@@ -5,6 +5,7 @@ use crate::core::Memory;
 use crate::drivers::{list_drivers, get_driver, CloneModeRadio, Radio};
 use crate::formats::{load_img, save_img};
 use crate::serial::{SerialConfig, SerialPort};
+use cpp::cpp;
 use qmetaobject::prelude::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -17,7 +18,7 @@ cpp! {{
     #include <QtWidgets/QMainWindow>
     #include <QtWidgets/QMenuBar>
     #include <QtWidgets/QMenu>
-    #include <QtWidgets/QAction>
+    #include <QtGui/QAction>
     #include <QtWidgets/QTableWidget>
     #include <QtWidgets/QTableWidgetItem>
     #include <QtWidgets/QHeaderView>
@@ -85,11 +86,11 @@ impl MainWindow {
 /// Run the Qt application
 pub fn run_qt_app() -> i32 {
     // Create Qt application
-    let argc = 0;
-    let argv = std::ptr::null_mut();
+    let mut argc = 0;
+    let argv: *mut *mut i8 = std::ptr::null_mut();
 
     unsafe {
-        cpp!([argc as "int", argv as "char**"] -> i32 as "int" {
+        cpp!([mut argc as "int", argv as "char**"] -> i32 as "int" {
             QApplication app(argc, argv);
             app.setApplicationName("CHIRP-RS");
             app.setOrganizationName("CHIRP");
