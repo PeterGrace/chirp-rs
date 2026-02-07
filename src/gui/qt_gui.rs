@@ -20,8 +20,10 @@ cpp! {{
     #include <QtWidgets/QTableWidgetItem>
     #include <QtWidgets/QHeaderView>
     #include <QtWidgets/QVBoxLayout>
+    #include <QtWidgets/QHBoxLayout>
     #include <QtWidgets/QWidget>
     #include <QtWidgets/QMessageBox>
+    #include <QtWidgets/QPushButton>
     #include <QtWidgets/QFileDialog>
     #include <QtWidgets/QDialog>
     #include <QtWidgets/QDialogButtonBox>
@@ -63,6 +65,10 @@ cpp! {{
         const char* update_memory(size_t row, uint64_t freq, const char* name,
                                  const char* duplex, uint64_t offset, const char* mode,
                                  const char* tmode, float rtone, float ctone);
+        const char* get_vendors();
+        const char* get_models_for_vendor(const char* vendor);
+        const char* get_serial_ports();
+        const char* download_from_radio(const char* vendor, const char* model, const char* port);
     }
 
     // Helper function to refresh table from Rust data
@@ -84,6 +90,116 @@ cpp! {{
             table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
             table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
             table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
+        }
+    }
+
+    // Helper function to show download dialog
+    void showDownloadDialog(QWidget* parent, QTableWidget* table) {
+        QDialog dialog(parent);
+        dialog.setWindowTitle("Download from Radio");
+        QFormLayout* layout = new QFormLayout(&dialog);
+
+        // Get vendors
+        QString vendorsStr = QString::fromUtf8(get_vendors());
+        QStringList vendors = vendorsStr.split(",", Qt::SkipEmptyParts);
+
+        // Create vendor dropdown
+        QComboBox* vendorCombo = new QComboBox();
+        vendorCombo->addItems(vendors);
+
+        // Create model dropdown (populated when vendor changes)
+        QComboBox* modelCombo = new QComboBox();
+
+        // Create port dropdown
+        QComboBox* portCombo = new QComboBox();
+        QString portsStr = QString::fromUtf8(get_serial_ports());
+        QStringList ports = portsStr.split(",", Qt::SkipEmptyParts);
+        portCombo->addItems(ports);
+
+        // Refresh ports button
+        QPushButton* refreshBtn = new QPushButton("Refresh");
+        QObject::connect(refreshBtn, &QPushButton::clicked, [portCombo]() {
+            QString portsStr = QString::fromUtf8(get_serial_ports());
+            QStringList ports = portsStr.split(",", Qt::SkipEmptyParts);
+            portCombo->clear();
+            portCombo->addItems(ports);
+        });
+
+        // Update models when vendor changes
+        QObject::connect(vendorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [vendorCombo, modelCombo]() {
+                QString vendor = vendorCombo->currentText();
+                QString modelsStr = QString::fromUtf8(get_models_for_vendor(vendor.toUtf8().constData()));
+                QStringList models = modelsStr.split(",", Qt::SkipEmptyParts);
+                modelCombo->clear();
+                modelCombo->addItems(models);
+            });
+
+        // Trigger initial model population
+        if (vendors.count() > 0) {
+            vendorCombo->setCurrentIndex(0);
+            QString vendor = vendorCombo->currentText();
+            QString modelsStr = QString::fromUtf8(get_models_for_vendor(vendor.toUtf8().constData()));
+            QStringList models = modelsStr.split(",", Qt::SkipEmptyParts);
+            modelCombo->addItems(models);
+        }
+
+        // Add fields to form
+        layout->addRow("Vendor:", vendorCombo);
+        layout->addRow("Model:", modelCombo);
+
+        QHBoxLayout* portLayout = new QHBoxLayout();
+        portLayout->addWidget(portCombo);
+        portLayout->addWidget(refreshBtn);
+        layout->addRow("Port:", portLayout);
+
+        // Add buttons
+        QDialogButtonBox* buttons = new QDialogButtonBox(
+            QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        buttons->button(QDialogButtonBox::Ok)->setText("Download");
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        layout->addRow(buttons);
+
+        // Show dialog
+        if (dialog.exec() == QDialog::Accepted) {
+            QString vendor = vendorCombo->currentText();
+            QString model = modelCombo->currentText();
+            QString port = portCombo->currentText();
+
+            if (vendor.isEmpty() || model.isEmpty() || port.isEmpty()) {
+                QMessageBox::warning(parent, "Invalid Selection",
+                    "Please select vendor, model, and port");
+                return;
+            }
+
+            // Show progress message (blocking operation)
+            QMessageBox* progressBox = new QMessageBox(parent);
+            progressBox->setWindowTitle("Downloading");
+            progressBox->setText("Downloading memories from radio...\nThis may take a minute.");
+            progressBox->setStandardButtons(QMessageBox::NoButton);
+            progressBox->setModal(false);
+            progressBox->show();
+            QApplication::processEvents();
+
+            // Call Rust to download (blocking)
+            const char* error = download_from_radio(
+                vendor.toUtf8().constData(),
+                model.toUtf8().constData(),
+                port.toUtf8().constData()
+            );
+
+            progressBox->close();
+            delete progressBox;
+
+            if (error) {
+                QMessageBox::critical(parent, "Download Failed", QString::fromUtf8(error));
+                free_error_message(error);
+            } else {
+                refreshTable(table);
+                QMessageBox::information(parent, "Download Complete",
+                    QString("Successfully downloaded %1 memories from radio").arg(get_memory_count()));
+            }
         }
     }
 
@@ -516,6 +632,145 @@ pub extern "C" fn get_memory_by_row(row: usize) -> *const Memory {
     std::ptr::null()
 }
 
+/// FFI: Get list of available vendors (comma-separated)
+#[no_mangle]
+pub extern "C" fn get_vendors() -> *const c_char {
+    static mut VENDORS_BUF: Option<CString> = None;
+
+    let data = MEMORY_DATA.lock().unwrap();
+    let vendors = if let Some(state) = data.as_ref() {
+        // We need to get vendors from somewhere - let's get them from drivers
+        let drivers = list_drivers();
+        let mut vendors: Vec<String> = drivers.iter().map(|d| d.vendor.clone()).collect();
+        vendors.sort();
+        vendors.dedup();
+        vendors.join(",")
+    } else {
+        let drivers = list_drivers();
+        let mut vendors: Vec<String> = drivers.iter().map(|d| d.vendor.clone()).collect();
+        vendors.sort();
+        vendors.dedup();
+        vendors.join(",")
+    };
+
+    unsafe {
+        VENDORS_BUF = Some(CString::new(vendors).unwrap());
+        VENDORS_BUF.as_ref().unwrap().as_ptr()
+    }
+}
+
+/// FFI: Get list of models for a vendor (comma-separated)
+#[no_mangle]
+pub unsafe extern "C" fn get_models_for_vendor(vendor: *const c_char) -> *const c_char {
+    static mut MODELS_BUF: Option<CString> = None;
+
+    let c_str = CStr::from_ptr(vendor);
+    let vendor_str = c_str.to_str().unwrap_or("");
+
+    let drivers = list_drivers();
+    let models: Vec<String> = drivers
+        .iter()
+        .filter(|d| d.vendor == vendor_str)
+        .map(|d| d.model.clone())
+        .collect();
+
+    let models_str = models.join(",");
+
+    unsafe {
+        MODELS_BUF = Some(CString::new(models_str).unwrap());
+        MODELS_BUF.as_ref().unwrap().as_ptr()
+    }
+}
+
+/// FFI: Get list of available serial ports (comma-separated)
+#[no_mangle]
+pub extern "C" fn get_serial_ports() -> *const c_char {
+    static mut PORTS_BUF: Option<CString> = None;
+
+    let ports = match serialport::available_ports() {
+        Ok(ports) => ports.into_iter().map(|p| p.port_name).collect::<Vec<_>>().join(","),
+        Err(_) => String::new(),
+    };
+
+    unsafe {
+        PORTS_BUF = Some(CString::new(ports).unwrap());
+        PORTS_BUF.as_ref().unwrap().as_ptr()
+    }
+}
+
+/// FFI: Download memories from radio (blocking operation)
+/// Returns NULL on success, or error message on failure
+#[no_mangle]
+pub unsafe extern "C" fn download_from_radio(
+    vendor: *const c_char,
+    model: *const c_char,
+    port: *const c_char,
+) -> *const c_char {
+    // Convert C strings to Rust
+    let vendor_str = CStr::from_ptr(vendor).to_str().unwrap_or("").to_string();
+    let model_str = CStr::from_ptr(model).to_str().unwrap_or("").to_string();
+    let port_str = CStr::from_ptr(port).to_str().unwrap_or("").to_string();
+
+    // Create a tokio runtime for the async operation
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            let err_msg = format!("Failed to create async runtime: {}", e);
+            return CString::new(err_msg).unwrap().into_raw();
+        }
+    };
+
+    // Run the download operation
+    let result = runtime.block_on(async {
+        // Progress callback (for now, just ignore progress updates)
+        let progress_fn = std::sync::Arc::new(|_current: usize, _total: usize, _msg: String| {
+            // TODO: Update progress bar
+        });
+
+        crate::gui::radio_ops::download_from_radio(
+            port_str,
+            vendor_str,
+            model_str,
+            progress_fn,
+        )
+        .await
+    });
+
+    match result {
+        Ok(memories) => {
+            // Filter out empty memories
+            let non_empty: Vec<Memory> = memories.into_iter().filter(|m| !m.empty).collect();
+
+            // Convert to CStrings
+            let mut all_cstrings = Vec::new();
+            for mem in &non_empty {
+                let strings = memory_to_row_strings(mem);
+                let cstrings: Vec<CString> = strings
+                    .into_iter()
+                    .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
+                    .collect();
+                all_cstrings.push(cstrings);
+            }
+
+            // Update global state
+            let mut data = MEMORY_DATA.lock().unwrap();
+            *data = Some(AppState {
+                memories: non_empty,
+                cstrings: all_cstrings,
+                current_file: None,
+                is_modified: false,
+            });
+
+            // Return NULL to indicate success
+            std::ptr::null()
+        }
+        Err(e) => {
+            let err_msg = format!("Download failed: {}", e);
+            CString::new(err_msg).unwrap().into_raw()
+        }
+    }
+}
+
 /// FFI: Update a memory at a specific row
 /// Returns NULL on success, or error message on failure
 #[no_mangle]
@@ -727,10 +982,8 @@ pub fn run_qt_app() -> i32 {
 
             // Radio menu
             QMenu* radioMenu = menuBar->addMenu("&Radio");
-            radioMenu->addAction("&Download from Radio", [window]() {
-                // TODO: Show download dialog
-                QMessageBox::information(window, "Download",
-                    "Download from radio functionality coming soon");
+            radioMenu->addAction("&Download from Radio", [=]() {
+                showDownloadDialog(window, table);
             });
             radioMenu->addAction("&Upload to Radio", [window]() {
                 // TODO: Show upload dialog
