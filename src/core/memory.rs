@@ -117,6 +117,9 @@ pub struct Memory {
 
     /// D-STAR digital code
     pub dv_code: u8,
+
+    /// Bank/Group number (0-9 for most radios)
+    pub bank: u8,
 }
 
 impl Default for Memory {
@@ -154,6 +157,7 @@ impl Memory {
             dv_rpt1call: String::new(),
             dv_rpt2call: String::new(),
             dv_code: 0,
+            bank: 0,
         }
     }
 
@@ -306,6 +310,7 @@ impl Memory {
         "RPT1CALL",
         "RPT2CALL",
         "DVCODE",
+        "Bank",
     ];
 
     /// Export to CSV row
@@ -335,6 +340,7 @@ impl Memory {
             self.dv_rpt1call.clone(),
             self.dv_rpt2call.clone(),
             format!("{}", self.dv_code),
+            format!("{}", self.bank),
         ]
     }
 }

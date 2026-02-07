@@ -50,6 +50,7 @@ cpp! {{
         const char* urcall;
         const char* rpt1;
         const char* rpt2;
+        const char* bank;
     };
 
     // Forward declare Memory struct (we only need pointer to it)
@@ -99,6 +100,7 @@ cpp! {{
             table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
             table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
             table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
+            table->setItem(row, 12, new QTableWidgetItem(QString::fromUtf8(data.bank)));
         }
 
         // Force table to update display
@@ -435,6 +437,7 @@ pub struct RowData {
     urcall: *const c_char,
     rpt1: *const c_char,
     rpt2: *const c_char,
+    bank: *const c_char,
 }
 
 /// Application state
@@ -525,6 +528,7 @@ fn memory_to_row_strings(mem: &Memory) -> Vec<String> {
         urcall,
         rpt1,
         rpt2,
+        mem.bank.to_string(),
     ]
 }
 
@@ -556,6 +560,7 @@ pub extern "C" fn get_memory_row(row: usize) -> RowData {
                 urcall: row_cstrings[9].as_ptr(),
                 rpt1: row_cstrings[10].as_ptr(),
                 rpt2: row_cstrings[11].as_ptr(),
+                bank: row_cstrings[12].as_ptr(),
             };
         }
     }
@@ -575,6 +580,7 @@ pub extern "C" fn get_memory_row(row: usize) -> RowData {
         urcall: EMPTY.as_ptr() as *const c_char,
         rpt1: EMPTY.as_ptr() as *const c_char,
         rpt2: EMPTY.as_ptr() as *const c_char,
+        bank: EMPTY.as_ptr() as *const c_char,
     }
 }
 
@@ -1263,11 +1269,11 @@ pub fn run_qt_app() -> i32 {
             QVBoxLayout* layout = new QVBoxLayout(centralWidget);
 
             QTableWidget* table = new QTableWidget(centralWidget);
-            table->setColumnCount(12);
+            table->setColumnCount(13);
             QStringList headers;
             headers << "Loc" << "Frequency" << "Name" << "Duplex" << "Offset"
                     << "Mode" << "ToneMode" << "Tone" << "Power"
-                    << "URCALL" << "RPT1" << "RPT2";
+                    << "URCALL" << "RPT1" << "RPT2" << "Bank";
             table->setHorizontalHeaderLabels(headers);
             table->horizontalHeader()->setStretchLastSection(true);
             table->setAlternatingRowColors(true);
@@ -1288,6 +1294,7 @@ pub fn run_qt_app() -> i32 {
             table->setColumnWidth(9, 100);  // URCALL
             table->setColumnWidth(10, 100); // RPT1
             table->setColumnWidth(11, 100); // RPT2
+            table->setColumnWidth(12, 50);  // Bank
 
             layout->addWidget(table);
             centralWidget->setLayout(layout);

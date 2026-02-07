@@ -712,7 +712,7 @@ impl THD75Radio {
         let flags = MemoryFlags {
             used: 0x00, // 0x00 = used, 0xFF = empty
             lockout: mem.skip == "S",
-            group: 0, // Default group
+            group: mem.bank, // Use bank from memory
         };
 
         Ok((raw, flags))
@@ -792,6 +792,9 @@ impl THD75Radio {
         if flags.lockout {
             mem.skip = "S".to_string();
         }
+
+        // Bank/Group
+        mem.bank = flags.group;
 
         // Log the decoded memory for debugging
         tracing::debug!(
@@ -1394,6 +1397,15 @@ mod tests {
         assert_eq!(mem3.duplex, mem3_2.duplex);
         assert_eq!(mem3.tmode, mem3_2.tmode);
         assert_eq!(mem3.rtone, mem3_2.rtone);
+        assert_eq!(mem3.bank, mem3_2.bank);
+
+        // Verify bank assignments are preserved
+        let mem101 = memories.iter().find(|m| m.number == 101);
+        if let Some(mem) = mem101 {
+            let mem101_2 = memories2.iter().find(|m| m.number == 101).unwrap();
+            assert_eq!(mem.bank, 1, "Memory 101 should be in bank 1");
+            assert_eq!(mem101_2.bank, 1, "Memory 101 should preserve bank 1");
+        }
     }
 
     #[test]
@@ -1423,6 +1435,36 @@ mod tests {
             String::from_utf8_lossy(&raw.dv_rpt1call).trim_end_matches('\0'),
             "W3POG"
         );
+    }
+
+    #[test]
+    fn test_bank_assignments() {
+        let dump_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+
+        if !dump_path.exists() {
+            eprintln!("Skipping test: radio_dump.bin not found");
+            return;
+        }
+
+        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let mmap = MemoryMap::new(data);
+        let radio = THD75Radio::new();
+
+        // Check group assignments for various memories
+        println!("\nBank/Group assignments:");
+        for mem_num in [0, 1, 50, 100, 101, 150, 199, 200, 201, 202] {
+            let flags_off = radio.flags_offset(mem_num);
+            if let Ok(flags_data) = mmap.get(flags_off, Some(4)) {
+                let flags = MemoryFlags::from_bytes(flags_data);
+                if flags.used != 0xFF {
+                    println!(
+                        "  Memory #{:3}: group = {} (0x{:02X})",
+                        mem_num, flags.group, flags.group
+                    );
+                }
+            }
+        }
     }
 
     #[test]
