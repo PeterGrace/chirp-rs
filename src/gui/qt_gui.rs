@@ -35,7 +35,6 @@ cpp! {{
     #include <QtCore/QString>
     #include <QtCore/QStringList>
     #include <QtCore/QTimer>
-    #include <QtCore/QDebug>
 
     // C-compatible row data structure
     struct RowData {
@@ -202,19 +201,13 @@ cpp! {{
                 port.toUtf8().constData()
             );
 
-            qDebug() << "Starting download, about to create timer";
-
             // Create timer to poll progress (give it parent so it stays alive)
             QTimer* timer = new QTimer(parent);
             timer->setInterval(100); // Poll every 100ms
-            qDebug() << "Timer created with interval 100ms";
 
             QObject::connect(timer, &QTimer::timeout, [=]() mutable {
-                qDebug() << "Timer tick - checking download progress";
-
                 // Check if user cancelled
                 if (progressDlg->wasCanceled()) {
-                    qDebug() << "User cancelled download";
                     timer->stop();
                     progressDlg->deleteLater();
                     timer->deleteLater();
@@ -228,11 +221,6 @@ cpp! {{
                 const char* message = nullptr;
                 int percentage = get_download_progress(&current, &total, &message);
 
-                qDebug() << "Progress:" << percentage << "% (" << current << "/" << total << ")";
-                if (message) {
-                    qDebug() << "Message:" << message;
-                }
-
                 if (percentage >= 0) {
                     // Still in progress
                     progressDlg->setMaximum(total);
@@ -245,7 +233,6 @@ cpp! {{
 
                 // Check if complete
                 int complete = is_download_complete();
-                qDebug() << "Download complete status:" << complete;
                 if (complete == 1) {
                     timer->stop();
                     progressDlg->close();
@@ -269,7 +256,6 @@ cpp! {{
             });
 
             timer->start();
-            qDebug() << "Timer started, waiting for progress updates...";
         }
     }
 
@@ -867,14 +853,10 @@ pub unsafe extern "C" fn start_download_async(
     model: *const c_char,
     port: *const c_char,
 ) {
-    tracing::info!("start_download_async called - spawning background thread");
-
     // Convert C strings to Rust
     let vendor_str = CStr::from_ptr(vendor).to_str().unwrap_or("").to_string();
     let model_str = CStr::from_ptr(model).to_str().unwrap_or("").to_string();
     let port_str = CStr::from_ptr(port).to_str().unwrap_or("").to_string();
-
-    tracing::info!("Vendor: {}, Model: {}, Port: {}", vendor_str, model_str, port_str);
 
     // Reset state to InProgress
     {
@@ -886,11 +868,8 @@ pub unsafe extern "C" fn start_download_async(
         });
     }
 
-    tracing::info!("Spawning background thread for download...");
-
     // Spawn background thread to do the download
     thread::spawn(move || {
-        tracing::info!("Background thread started, creating tokio runtime...");
         // Create tokio runtime
         let runtime = match tokio::runtime::Runtime::new() {
             Ok(rt) => rt,
@@ -903,11 +882,8 @@ pub unsafe extern "C" fn start_download_async(
 
         // Run the download
         let result = runtime.block_on(async {
-            tracing::info!("Inside background thread async block, calling download_from_radio...");
-
             // Progress callback that updates global state
             let progress_fn = Arc::new(|current: usize, total: usize, msg: String| {
-                tracing::debug!("Progress update: {}/{} - {}", current, total, msg);
                 let mut state = DOWNLOAD_STATE.lock().unwrap();
                 *state = DownloadState::InProgress(DownloadProgress {
                     current,
@@ -925,16 +901,10 @@ pub unsafe extern "C" fn start_download_async(
             .await
         });
 
-        tracing::info!("Download completed in background thread, storing result...");
-
         // Store result
         let mut state = DOWNLOAD_STATE.lock().unwrap();
         *state = DownloadState::Complete(result);
-
-        tracing::info!("Background thread exiting");
     });
-
-    tracing::info!("start_download_async returning (background thread spawned)");
 }
 
 /// FFI: Get current download progress (returns current, total, message)
