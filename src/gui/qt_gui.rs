@@ -71,6 +71,7 @@ cpp! {{
         const char* get_vendors();
         const char* get_models_for_vendor(const char* vendor);
         const char* get_serial_ports();
+        const char* get_ctcss_tones();
         const char* download_from_radio(const char* vendor, const char* model, const char* port);
         void start_download_async(const char* vendor, const char* model, const char* port);
         int get_download_progress(int* out_current, int* out_total, const char** out_message);
@@ -98,6 +99,9 @@ cpp! {{
             table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
             table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
         }
+
+        // Force table to update display
+        table->viewport()->update();
     }
 
     // Helper function to show download dialog
@@ -121,15 +125,29 @@ cpp! {{
         QComboBox* portCombo = new QComboBox();
         QString portsStr = QString::fromUtf8(get_serial_ports());
         QStringList ports = portsStr.split(",", Qt::SkipEmptyParts);
-        portCombo->addItems(ports);
+        if (ports.isEmpty()) {
+            portCombo->addItem("(No ports found)");
+        } else {
+            portCombo->addItems(ports);
+        }
 
         // Refresh ports button
         QPushButton* refreshBtn = new QPushButton("Refresh");
-        QObject::connect(refreshBtn, &QPushButton::clicked, [portCombo]() {
+        QObject::connect(refreshBtn, &QPushButton::clicked, [portCombo, parent]() {
             QString portsStr = QString::fromUtf8(get_serial_ports());
             QStringList ports = portsStr.split(",", Qt::SkipEmptyParts);
             portCombo->clear();
-            portCombo->addItems(ports);
+            if (ports.isEmpty()) {
+                portCombo->addItem("(No ports found)");
+                QMessageBox::warning(parent, "No Serial Ports Found",
+                    "No serial ports were detected.\n\n"
+                    "Please check:\n"
+                    "• Radio is connected via USB\n"
+                    "• USB drivers are installed\n"
+                    "• Radio is powered on");
+            } else {
+                portCombo->addItems(ports);
+            }
         });
 
         // Update models when vendor changes
@@ -240,8 +258,15 @@ cpp! {{
                     // Get result
                     const char* error = get_download_result();
                     if (error) {
+                        QString errorMsg = QString::fromUtf8(error);
                         QMessageBox::critical(parent, "Download Failed",
-                            QString::fromUtf8(error));
+                            QString("Failed to download memories from radio.\n\n"
+                                   "Error: %1\n\n"
+                                   "Please check:\n"
+                                   "• Radio is connected and powered on\n"
+                                   "• Correct serial port is selected\n"
+                                   "• No other program is using the radio")
+                            .arg(errorMsg));
                         free_error_message(error);
                     } else {
                         refreshTable(table);
@@ -287,15 +312,27 @@ cpp! {{
         tmodeCombo->addItems({"", "Tone", "TSQL", "DTCS", "Cross"});
         tmodeCombo->setCurrentText(QString::fromUtf8(data.tmode));
 
-        QLineEdit* rtoneEdit = new QLineEdit();
-        QLineEdit* ctoneEdit = new QLineEdit();
+        // Get standard CTCSS tones
+        QString tonesStr = QString::fromUtf8(get_ctcss_tones());
+        QStringList tones = tonesStr.split(",", Qt::SkipEmptyParts);
 
-        // Parse current tone value
+        QComboBox* rtoneCombo = new QComboBox();
+        rtoneCombo->addItems(tones);
+        rtoneCombo->setEditable(false);
+
+        QComboBox* ctoneCombo = new QComboBox();
+        ctoneCombo->addItems(tones);
+        ctoneCombo->setEditable(false);
+
+        // Parse current tone value and select in dropdown
         QString toneStr = QString::fromUtf8(data.tone);
         if (!toneStr.isEmpty()) {
-            // Assume rtone for now (could be more sophisticated)
-            rtoneEdit->setText(toneStr);
-            ctoneEdit->setText(toneStr);
+            rtoneCombo->setCurrentText(toneStr);
+            ctoneCombo->setCurrentText(toneStr);
+        } else {
+            // Default to 88.5 Hz
+            rtoneCombo->setCurrentText("88.5");
+            ctoneCombo->setCurrentText("88.5");
         }
 
         // Add fields to form
@@ -305,8 +342,8 @@ cpp! {{
         layout->addRow("Offset (MHz):", offsetEdit);
         layout->addRow("Mode:", modeCombo);
         layout->addRow("Tone Mode:", tmodeCombo);
-        layout->addRow("TX Tone (Hz):", rtoneEdit);
-        layout->addRow("RX Tone (Hz):", ctoneEdit);
+        layout->addRow("TX Tone (Hz):", rtoneCombo);
+        layout->addRow("RX Tone (Hz):", ctoneCombo);
 
         // Add buttons
         QDialogButtonBox* buttons = new QDialogButtonBox(
@@ -318,20 +355,44 @@ cpp! {{
         // Show dialog
         if (dialog.exec() == QDialog::Accepted) {
             // Parse frequency (convert MHz string to Hz)
-            QString freqStr = freqEdit->text();
-            double freqMHz = freqStr.toDouble();
+            QString freqStr = freqEdit->text().trimmed();
+            bool freqOk = false;
+            double freqMHz = freqStr.toDouble(&freqOk);
+
+            if (!freqOk || freqMHz <= 0.0) {
+                QMessageBox::warning(parent, "Invalid Frequency",
+                    QString("Invalid frequency value: '%1'\n\nPlease enter a valid frequency in MHz (e.g., 146.520)")
+                    .arg(freqStr));
+                return;
+            }
+
+            // Validate frequency range (30 MHz to 3 GHz)
+            if (freqMHz < 30.0 || freqMHz > 3000.0) {
+                QMessageBox::warning(parent, "Frequency Out of Range",
+                    QString("Frequency %1 MHz is out of valid range.\n\nValid range: 30-3000 MHz")
+                    .arg(freqMHz, 0, 'f', 3));
+                return;
+            }
+
             uint64_t freqHz = static_cast<uint64_t>(freqMHz * 1000000.0);
 
             // Parse offset
-            QString offsetStr = offsetEdit->text();
-            double offsetMHz = offsetStr.toDouble();
+            QString offsetStr = offsetEdit->text().trimmed();
+            bool offsetOk = false;
+            double offsetMHz = offsetStr.isEmpty() ? 0.0 : offsetStr.toDouble(&offsetOk);
+
+            if (!offsetStr.isEmpty() && !offsetOk) {
+                QMessageBox::warning(parent, "Invalid Offset",
+                    QString("Invalid offset value: '%1'\n\nPlease enter a valid offset in MHz (e.g., 0.6)")
+                    .arg(offsetStr));
+                return;
+            }
+
             uint64_t offsetHz = static_cast<uint64_t>(offsetMHz * 1000000.0);
 
-            // Parse tones
-            float rtone = rtoneEdit->text().toFloat();
-            float ctone = ctoneEdit->text().toFloat();
-            if (rtone == 0.0f) rtone = 88.5f;  // Default
-            if (ctone == 0.0f) ctone = 88.5f;
+            // Get tones from dropdowns (no validation needed - all values are valid)
+            float rtone = rtoneCombo->currentText().toFloat();
+            float ctone = ctoneCombo->currentText().toFloat();
 
             // Call Rust to update memory
             const char* error = update_memory(
@@ -347,7 +408,8 @@ cpp! {{
             );
 
             if (error) {
-                QMessageBox::critical(parent, "Error", QString::fromUtf8(error));
+                QMessageBox::critical(parent, "Failed to Update Memory",
+                    QString("Could not update memory:\n\n%1").arg(QString::fromUtf8(error)));
                 free_error_message(error);
             } else {
                 // Refresh the table
@@ -772,6 +834,23 @@ pub extern "C" fn get_serial_ports() -> *const c_char {
     }
 }
 
+/// FFI: Get list of standard CTCSS tones (comma-separated)
+#[no_mangle]
+pub extern "C" fn get_ctcss_tones() -> *const c_char {
+    static mut TONES_BUF: Option<CString> = None;
+
+    use crate::core::constants::TONES;
+    let tones_str = TONES.iter()
+        .map(|t| format!("{:.1}", t))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    unsafe {
+        TONES_BUF = Some(CString::new(tones_str).unwrap());
+        TONES_BUF.as_ref().unwrap().as_ptr()
+    }
+}
+
 /// FFI: Download memories from radio (blocking operation)
 /// Returns NULL on success, or error message on failure
 #[no_mangle]
@@ -1180,8 +1259,14 @@ pub fn run_qt_app() -> i32 {
                 if (!fileName.isEmpty()) {
                     const char* error = load_file(fileName.toUtf8().constData());
                     if (error) {
-                        QMessageBox::critical(window, "Error Opening File",
-                            QString::fromUtf8(error));
+                        QString errorMsg = QString::fromUtf8(error);
+                        QMessageBox::critical(window, "Failed to Open File",
+                            QString("Could not open file:\n%1\n\nError: %2\n\n"
+                                   "Please ensure:\n"
+                                   "• File is a valid CHIRP image (.img)\n"
+                                   "• File is not corrupted\n"
+                                   "• You have permission to read the file")
+                            .arg(fileName).arg(errorMsg));
                         free_error_message(error);
                     } else {
                         refreshTable(table);
