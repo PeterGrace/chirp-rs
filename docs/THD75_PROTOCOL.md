@@ -197,27 +197,37 @@ Index | Step (kHz)
 
 ### Byte 0x09: Mode and Narrow
 
+**⚠️ CRITICAL: DV mode detection!**
+
 ```
 Bit 7-6: Fine step (2 bits)
 Bit 5:   Fine mode flag
-Bit 4:   Narrow flag (NFM vs FM)
-Bit 3-1: Mode (3 bits) - index into MODES
+Bit 4:   DV mode flag - if set, this is a D-STAR/DV memory
+Bit 3:   Narrow flag (NFM vs FM) - actual narrow indicator
+Bit 2-1: Mode bits (for non-DV memories)
 Bit 0:   Unknown
 ```
 
-**Mode Table:**
+**Mode Detection Logic:**
+- If **bit 4 is set**: Memory is **DV/D-STAR mode** (digital voice)
+- Otherwise: Use bits 2-1 for analog mode (FM, AM, etc.)
+
+**Important:** Bit 4 is NOT the narrow flag for FM - it's the DV mode indicator! The actual narrow flag is bit 3.
+
+**Mode Table (for non-DV memories):**
 ```
-Index | Mode
-------|-----
-  0   | FM
-  1   | DV (D-STAR)
-  2   | AM
-  3   | LSB
-  4   | USB
-  5   | CW
-  6   | NFM
-  7   | DV (duplicate)
+Bits 2-1 | Mode
+---------|-----
+   00    | FM
+   01    | (unused)
+   10    | AM
+   11    | (other modes)
 ```
+
+**Examples:**
+- `0x00 = 0b00000000`: FM mode, not narrow
+- `0x10 = 0b00010000`: DV mode (bit 4 set)
+- `0x08 = 0b00001000`: FM narrow mode (bit 3 set)
 
 ### Byte 0x0A: Tone Settings and Duplex
 
@@ -357,7 +367,7 @@ Standard DTCS codes (104 codes):
 ### Test Data
 
 The implementation includes comprehensive tests using actual radio dump data:
-- **File:** `radio_dump.bin` (500,480 bytes)
+- **File:** `test_data/radio_dump.bin` (500,480 bytes)
 - **Memories:** 91 non-empty channels verified
 - **Coverage:** FM, DV, various tone modes, different frequencies
 
@@ -382,9 +392,24 @@ fn test_parse_real_memories() {
 ### Validation
 
 All memory offsets and bit field interpretations have been verified against:
-1. Official CHIRP .img file export
-2. CHIRP .csv file export (ground truth)
+1. Official CHIRP .img file export (`test_data/Kenwood_TH-D75_20260207.img`)
+2. CHIRP .csv file export (`test_data/Kenwood_TH-D75_20260207.csv` - ground truth)
 3. Multiple memory channels across all ranges (0-1199)
+
+### CLI Testing Tool
+
+Use the `parse-dump` utility to test memory parsing:
+
+```bash
+# Parse all non-empty memories
+cargo run --bin parse-dump -- test_data/radio_dump.bin
+
+# Parse specific memory
+cargo run --bin parse-dump -- test_data/radio_dump.bin 40
+
+# Parse a range
+cargo run --bin parse-dump -- test_data/radio_dump.bin 32-50
+```
 
 ---
 
@@ -409,8 +434,9 @@ All memory offsets and bit field interpretations have been verified against:
 
 - `src/drivers/thd75.rs` - Implementation
 - `src/bin/parse_dump.rs` - CLI testing tool
-- `radio_dump.bin` - Test data
-- `Kenwood_TH-D75_20260207.csv` - Ground truth data
+- `test_data/radio_dump.bin` - Test data (500KB binary dump)
+- `test_data/Kenwood_TH-D75_20260207.img` - CHIRP image file (489KB)
+- `test_data/Kenwood_TH-D75_20260207.csv` - Ground truth data (CSV export)
 
 ---
 
@@ -445,6 +471,8 @@ For writing memories back to radio:
 - **Corrected duplex bit position** (bits 0-1, not 6-7)
 - **Verified groups-of-6 memory layout**
 - **Refactored duplex to use enum** (type safety)
+- **Discovered DV mode detection** (bit 4 of byte 9, not mode bits!)
+- **Fixed tone mode for DV memories** (DV uses digital squelch, not tones)
 - **Added comprehensive tests** using real radio data
 - **All 1200 memories now parse correctly**
 

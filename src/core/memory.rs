@@ -104,6 +104,19 @@ pub struct Memory {
 
     /// List of immutable fields
     pub immutable: Vec<String>,
+
+    // D-STAR/DV fields (empty for non-DV memories)
+    /// D-STAR URCALL (destination callsign)
+    pub dv_urcall: String,
+
+    /// D-STAR RPT1CALL (repeater 1)
+    pub dv_rpt1call: String,
+
+    /// D-STAR RPT2CALL (repeater 2)
+    pub dv_rpt2call: String,
+
+    /// D-STAR digital code
+    pub dv_code: u8,
 }
 
 impl Default for Memory {
@@ -137,6 +150,10 @@ impl Memory {
             comment: String::new(),
             empty: false,
             immutable: Vec::new(),
+            dv_urcall: String::new(),
+            dv_rpt1call: String::new(),
+            dv_rpt2call: String::new(),
+            dv_code: 0,
         }
     }
 
@@ -314,10 +331,10 @@ impl Memory {
                 .map(|p| p.to_string())
                 .unwrap_or_default(),
             self.comment.clone(),
-            String::new(), // URCALL (for D-STAR)
-            String::new(), // RPT1CALL
-            String::new(), // RPT2CALL
-            String::new(), // DVCODE
+            self.dv_urcall.clone(),
+            self.dv_rpt1call.clone(),
+            self.dv_rpt2call.clone(),
+            format!("{}", self.dv_code),
         ]
     }
 }

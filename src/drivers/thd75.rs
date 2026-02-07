@@ -3,7 +3,7 @@
 
 use super::traits::{CloneModeRadio, Radio, RadioError, RadioResult, Status, StatusCallback};
 use crate::bitwise::{read_u32_le, write_u32_le};
-use crate::core::{DVMemory, Memory, RadioFeatures, DTCS_CODES, TONES};
+use crate::core::{Memory, RadioFeatures, DTCS_CODES, TONES};
 use crate::memmap::MemoryMap;
 use crate::serial::SerialPort;
 use std::time::{Duration, Instant};
@@ -152,8 +152,13 @@ impl RawMemory {
         let offset = read_u32_le(&data[4..8]).unwrap();
 
         let tuning_step = data[8] & 0x0F;
-        let mode = (data[9] >> 1) & 0x07;
-        let narrow = (data[9] & 0x08) != 0;
+        let mode_bits = (data[9] >> 1) & 0x07;
+        let narrow_flag = (data[9] & 0x10) != 0;  // Bit 4
+
+        // For TH-D75, the "narrow" flag (bit 4) actually indicates DV mode
+        // If set, this is a D-STAR/DV memory; otherwise use mode_bits
+        let mode = if narrow_flag { 1 } else { mode_bits };  // 1 = DV
+        let narrow = (data[9] & 0x08) != 0;  // Actual narrow flag is bit 3
 
         // Byte 10 bit layout (actual layout differs from some documentation):
         // Bits 0-1: duplex (01='+', 10='-', 00=split/simplex)
@@ -530,36 +535,26 @@ impl THD75Radio {
 
     /// Convert raw memory to Memory struct
     fn decode_memory(&self, number: u32, raw: &RawMemory, name: &str, flags: &MemoryFlags) -> RadioResult<Memory> {
-        let mut mem = if raw.mode == 1 {
-            // D-STAR mode - use DVMemory
-            let mut dv = DVMemory::new(number);
-            dv.base.freq = raw.freq as u64;
-            dv.base.offset = raw.offset as u64;
-            dv.base.mode = "DV".to_string();
-
-            // Decode D-STAR calls
-            dv.dv_urcall = String::from_utf8_lossy(&raw.dv_urcall)
-                .trim_end_matches('\0')
-                .to_string();
-            dv.dv_rpt1call = String::from_utf8_lossy(&raw.dv_rpt1call)
-                .trim_end_matches('\0')
-                .to_string();
-            dv.dv_rpt2call = String::from_utf8_lossy(&raw.dv_rpt2call)
-                .trim_end_matches('\0')
-                .to_string();
-            dv.dv_code = raw.dv_code;
-
-            // For now, return base memory
-            // TODO: Handle DVMemory properly
-            dv.base.clone()
-        } else {
-            Memory::new(number)
-        };
+        let mut mem = Memory::new(number);
 
         mem.number = number;
         mem.name = name.to_string();
         mem.freq = raw.freq as u64;
         mem.offset = raw.offset as u64;
+
+        // Populate D-STAR fields if this is a DV memory
+        if raw.mode == 1 {
+            mem.dv_urcall = String::from_utf8_lossy(&raw.dv_urcall)
+                .trim_end_matches('\0')
+                .to_string();
+            mem.dv_rpt1call = String::from_utf8_lossy(&raw.dv_rpt1call)
+                .trim_end_matches('\0')
+                .to_string();
+            mem.dv_rpt2call = String::from_utf8_lossy(&raw.dv_rpt2call)
+                .trim_end_matches('\0')
+                .to_string();
+            mem.dv_code = raw.dv_code;
+        }
 
         // Mode
         if (raw.mode as usize) < THD75_MODES.len() {
@@ -588,15 +583,18 @@ impl THD75Radio {
             mem.rx_dtcs = DTCS_CODES[raw.dtcs_code as usize];
         }
 
-        // Tone mode
-        if raw.tone_mode != 0 {
-            mem.tmode = "Tone".to_string();
-        } else if raw.ctcss_mode != 0 {
-            mem.tmode = "TSQL".to_string();
-        } else if raw.dtcs_mode != 0 {
-            mem.tmode = "DTCS".to_string();
-        } else if raw.cross_mode != 0 {
-            mem.tmode = "Cross".to_string();
+        // Tone mode (but not for DV/D-STAR mode - those use digital squelch instead)
+        // Mode 1 = DV/D-STAR, skip tone settings for those
+        if raw.mode != 1 {
+            if raw.tone_mode != 0 {
+                mem.tmode = "Tone".to_string();
+            } else if raw.ctcss_mode != 0 {
+                mem.tmode = "TSQL".to_string();
+            } else if raw.dtcs_mode != 0 {
+                mem.tmode = "DTCS".to_string();
+            } else if raw.cross_mode != 0 {
+                mem.tmode = "Cross".to_string();
+            }
         }
 
         // Skip (lockout)
@@ -937,7 +935,7 @@ mod tests {
     fn test_parse_real_memories() {
         // Load the actual radio dump for testing
         let dump_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("radio_dump.bin");
+            .join("test_data/radio_dump.bin");
 
         // Skip test if dump file doesn't exist (e.g., in CI)
         if !dump_path.exists() {
@@ -1014,7 +1012,7 @@ mod tests {
     #[test]
     fn test_empty_memory() {
         let dump_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("radio_dump.bin");
+            .join("test_data/radio_dump.bin");
 
         if !dump_path.exists() {
             eprintln!("Skipping test: radio_dump.bin not found");
@@ -1030,5 +1028,53 @@ mod tests {
         // Memory #63 should be empty (based on the CSV data)
         let mem63 = radio.get_memory(63).expect("Failed to get memory 63");
         assert!(mem63.is_none(), "Memory #63 should be empty");
+    }
+
+    #[test]
+    fn test_dv_memories() {
+        let dump_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("test_data/radio_dump.bin");
+
+        if !dump_path.exists() {
+            eprintln!("Skipping test: radio_dump.bin not found");
+            return;
+        }
+
+        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let mmap = crate::memmap::MemoryMap::new(data);
+        let mut radio = THD75Radio::new();
+        radio.process_mmap(&mmap).expect("Failed to process memory map");
+
+        // Test memory #1 - Eaglevi CQCQCQ (DV memory with empty D-STAR fields)
+        let mem1 = radio.get_memory(1).expect("Failed to get memory 1");
+        assert!(mem1.is_some());
+        let mem1 = mem1.unwrap();
+        assert_eq!(mem1.number, 1);
+        assert_eq!(mem1.name, "Eaglevi CQCQCQ");
+        assert_eq!(mem1.freq, 445_018_750);
+        assert_eq!(mem1.offset, 5_000_000);
+        assert_eq!(mem1.mode, "DV");
+        assert_eq!(mem1.duplex, "-");
+        // D-STAR fields are empty for this memory
+        assert_eq!(mem1.dv_urcall, "");
+        assert_eq!(mem1.dv_rpt1call, "");
+        assert_eq!(mem1.dv_rpt2call, "");
+        assert_eq!(mem1.dv_code, 0);
+        // Verify that DV memories have no tone mode
+        assert_eq!(mem1.tmode, "");
+
+        // Test memory #102 - dmr clear (DV memory with populated D-STAR fields)
+        let mem102 = radio.get_memory(102).expect("Failed to get memory 102");
+        assert!(mem102.is_some());
+        let mem102 = mem102.unwrap();
+        assert_eq!(mem102.number, 102);
+        assert_eq!(mem102.name, "dmr clear");
+        assert_eq!(mem102.freq, 438_287_500);
+        assert_eq!(mem102.mode, "DV");
+        // D-STAR fields should be populated (CHIRP CSV export bug didn't include these)
+        assert_eq!(mem102.dv_urcall, "4000");
+        assert_eq!(mem102.dv_rpt1call, "W3POG");
+        // RPT2CALL might be empty or populated - just verify it's been parsed
+        assert_eq!(mem102.tmode, "");
     }
 }

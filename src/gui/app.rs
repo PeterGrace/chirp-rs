@@ -573,6 +573,9 @@ impl ChirpApp {
             text("ToneMode").width(80),
             text("Tone").width(80),
             text("Power").width(80),
+            text("URCALL").width(100),
+            text("RPT1").width(100),
+            text("RPT2").width(100),
         ]
         .spacing(5);
 
@@ -581,6 +584,15 @@ impl ChirpApp {
         // Memory rows
         for mem in &self.memories {
             if !mem.empty {
+                // Show tone or D-STAR fields depending on mode
+                let (tone_mode, tone, urcall, rpt1, rpt2) = if mem.mode == "DV" {
+                    // For DV mode, show D-STAR fields
+                    (String::new(), String::new(), mem.dv_urcall.clone(), mem.dv_rpt1call.clone(), mem.dv_rpt2call.clone())
+                } else {
+                    // For non-DV modes, show tone info
+                    (mem.tmode.clone(), format!("{:.1}", mem.rtone), String::new(), String::new(), String::new())
+                };
+
                 let row_elem = row![
                     text(mem.number.to_string()).width(60),
                     text(Memory::format_freq(mem.freq)).width(120),
@@ -588,9 +600,12 @@ impl ChirpApp {
                     text(&mem.duplex).width(80),
                     text(Memory::format_freq(mem.offset)).width(100),
                     text(&mem.mode).width(80),
-                    text(&mem.tmode).width(80),
-                    text(format!("{:.1}", mem.rtone)).width(80),
+                    text(&tone_mode).width(80),
+                    text(&tone).width(80),
                     text(mem.power.as_ref().map(|p| p.label()).unwrap_or("")).width(80),
+                    text(&urcall).width(100),
+                    text(&rpt1).width(100),
+                    text(&rpt2).width(100),
                 ]
                 .spacing(5);
 

@@ -86,25 +86,42 @@ fn print_memory(mem: &chirp_rs::core::Memory) {
     println!("  Offset:       {} Hz ({:.2} MHz)", mem.offset, mem.offset as f64 / 1_000_000.0);
     println!("  Mode:         {}", mem.mode);
     println!("  Duplex:       {}", if mem.duplex.is_empty() { "none" } else { &mem.duplex });
-    println!("  Tone Mode:    {}", if mem.tmode.is_empty() { "none" } else { &mem.tmode });
 
-    // Show tone information based on tone mode
-    match mem.tmode.as_str() {
-        "Tone" => {
-            // Encode only - just show TX tone
-            println!("  CTCSS TX:     {} Hz", mem.rtone);
+    // Show D-STAR fields for DV mode
+    if mem.mode == "DV" {
+        if !mem.dv_urcall.is_empty() {
+            println!("  URCALL:       {}", mem.dv_urcall);
         }
-        "TSQL" => {
-            // Tone squelch - show both TX and RX
-            println!("  CTCSS TX:     {} Hz", mem.rtone);
-            println!("  CTCSS RX:     {} Hz", mem.ctone);
+        if !mem.dv_rpt1call.is_empty() {
+            println!("  RPT1CALL:     {}", mem.dv_rpt1call);
         }
-        "DTCS" => {
-            // Digital codes
-            println!("  DTCS:         {}", mem.dtcs);
+        if !mem.dv_rpt2call.is_empty() {
+            println!("  RPT2CALL:     {}", mem.dv_rpt2call);
         }
-        _ => {
-            // No tone mode or other modes
+        if mem.dv_code != 0 {
+            println!("  DV Code:      {}", mem.dv_code);
+        }
+    } else {
+        // Show tone information for non-DV modes
+        println!("  Tone Mode:    {}", if mem.tmode.is_empty() { "none" } else { &mem.tmode });
+
+        match mem.tmode.as_str() {
+            "Tone" => {
+                // Encode only - just show TX tone
+                println!("  CTCSS TX:     {} Hz", mem.rtone);
+            }
+            "TSQL" => {
+                // Tone squelch - show both TX and RX
+                println!("  CTCSS TX:     {} Hz", mem.rtone);
+                println!("  CTCSS RX:     {} Hz", mem.ctone);
+            }
+            "DTCS" => {
+                // Digital codes
+                println!("  DTCS:         {}", mem.dtcs);
+            }
+            _ => {
+                // No tone mode or other modes
+            }
         }
     }
 
