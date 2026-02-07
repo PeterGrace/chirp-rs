@@ -8,7 +8,8 @@ use cpp::cpp;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 cpp! {{
     #include <QtWidgets/QApplication>
@@ -30,8 +31,11 @@ cpp! {{
     #include <QtWidgets/QFormLayout>
     #include <QtWidgets/QLineEdit>
     #include <QtWidgets/QComboBox>
+    #include <QtWidgets/QProgressDialog>
     #include <QtCore/QString>
     #include <QtCore/QStringList>
+    #include <QtCore/QTimer>
+    #include <QtCore/QDebug>
 
     // C-compatible row data structure
     struct RowData {
@@ -69,6 +73,10 @@ cpp! {{
         const char* get_models_for_vendor(const char* vendor);
         const char* get_serial_ports();
         const char* download_from_radio(const char* vendor, const char* model, const char* port);
+        void start_download_async(const char* vendor, const char* model, const char* port);
+        int get_download_progress(int* out_current, int* out_total, const char** out_message);
+        int is_download_complete();
+        const char* get_download_result();
     }
 
     // Helper function to refresh table from Rust data
@@ -173,33 +181,95 @@ cpp! {{
                 return;
             }
 
-            // Show progress message (blocking operation)
-            QMessageBox* progressBox = new QMessageBox(parent);
-            progressBox->setWindowTitle("Downloading");
-            progressBox->setText("Downloading memories from radio...\nThis may take a minute.");
-            progressBox->setStandardButtons(QMessageBox::NoButton);
-            progressBox->setModal(false);
-            progressBox->show();
-            QApplication::processEvents();
+            // Create progress dialog
+            QProgressDialog* progressDlg = new QProgressDialog(
+                "Initializing...", "Cancel", 0, 100, parent);
+            progressDlg->setWindowTitle("Downloading from Radio");
+            progressDlg->setWindowModality(Qt::WindowModal);
+            progressDlg->setMinimumDuration(0);  // Show immediately
+            progressDlg->setAutoClose(false);     // Don't auto-close
+            progressDlg->setAutoReset(false);     // Don't auto-reset
+            progressDlg->setValue(0);
+            progressDlg->show();
+            progressDlg->raise();  // Bring to front
+            progressDlg->activateWindow();  // Activate window
+            QApplication::processEvents();  // Force immediate render
 
-            // Call Rust to download (blocking)
-            const char* error = download_from_radio(
+            // Start async download
+            start_download_async(
                 vendor.toUtf8().constData(),
                 model.toUtf8().constData(),
                 port.toUtf8().constData()
             );
 
-            progressBox->close();
-            delete progressBox;
+            qDebug() << "Starting download, about to create timer";
 
-            if (error) {
-                QMessageBox::critical(parent, "Download Failed", QString::fromUtf8(error));
-                free_error_message(error);
-            } else {
-                refreshTable(table);
-                QMessageBox::information(parent, "Download Complete",
-                    QString("Successfully downloaded %1 memories from radio").arg(get_memory_count()));
-            }
+            // Create timer to poll progress (give it parent so it stays alive)
+            QTimer* timer = new QTimer(parent);
+            timer->setInterval(100); // Poll every 100ms
+            qDebug() << "Timer created with interval 100ms";
+
+            QObject::connect(timer, &QTimer::timeout, [=]() mutable {
+                qDebug() << "Timer tick - checking download progress";
+
+                // Check if user cancelled
+                if (progressDlg->wasCanceled()) {
+                    qDebug() << "User cancelled download";
+                    timer->stop();
+                    progressDlg->deleteLater();
+                    timer->deleteLater();
+                    // TODO: Add ability to cancel download on Rust side
+                    return;
+                }
+
+                // Get current progress
+                int current = 0;
+                int total = 100;
+                const char* message = nullptr;
+                int percentage = get_download_progress(&current, &total, &message);
+
+                qDebug() << "Progress:" << percentage << "% (" << current << "/" << total << ")";
+                if (message) {
+                    qDebug() << "Message:" << message;
+                }
+
+                if (percentage >= 0) {
+                    // Still in progress
+                    progressDlg->setMaximum(total);
+                    progressDlg->setValue(current);
+                    if (message) {
+                        progressDlg->setLabelText(QString::fromUtf8(message));
+                    }
+                    progressDlg->show();  // Ensure it stays visible
+                }
+
+                // Check if complete
+                int complete = is_download_complete();
+                qDebug() << "Download complete status:" << complete;
+                if (complete == 1) {
+                    timer->stop();
+                    progressDlg->close();
+
+                    // Get result
+                    const char* error = get_download_result();
+                    if (error) {
+                        QMessageBox::critical(parent, "Download Failed",
+                            QString::fromUtf8(error));
+                        free_error_message(error);
+                    } else {
+                        refreshTable(table);
+                        QMessageBox::information(parent, "Download Complete",
+                            QString("Successfully downloaded %1 memories from radio")
+                                .arg(get_memory_count()));
+                    }
+
+                    progressDlg->deleteLater();
+                    timer->deleteLater();
+                }
+            });
+
+            timer->start();
+            qDebug() << "Timer started, waiting for progress updates...";
         }
     }
 
@@ -329,6 +399,24 @@ struct AppState {
 /// Global storage for memory data and C strings
 /// This keeps data alive while Qt is displaying it
 static MEMORY_DATA: Mutex<Option<AppState>> = Mutex::new(None);
+
+/// Download progress state
+#[derive(Clone)]
+struct DownloadProgress {
+    current: usize,
+    total: usize,
+    message: String,
+}
+
+/// Download state machine
+enum DownloadState {
+    Idle,
+    InProgress(DownloadProgress),
+    Complete(Result<Vec<Memory>, String>),
+}
+
+/// Global storage for async download state
+static DOWNLOAD_STATE: Mutex<DownloadState> = Mutex::new(DownloadState::Idle);
 
 /// Convert Memory to row data strings
 fn memory_to_row_strings(mem: &Memory) -> Vec<String> {
@@ -766,6 +854,178 @@ pub unsafe extern "C" fn download_from_radio(
         }
         Err(e) => {
             let err_msg = format!("Download failed: {}", e);
+            CString::new(err_msg).unwrap().into_raw()
+        }
+    }
+}
+
+/// FFI: Start async download from radio (non-blocking)
+/// Returns immediately, use get_download_progress/is_download_complete to poll
+#[no_mangle]
+pub unsafe extern "C" fn start_download_async(
+    vendor: *const c_char,
+    model: *const c_char,
+    port: *const c_char,
+) {
+    tracing::info!("start_download_async called - spawning background thread");
+
+    // Convert C strings to Rust
+    let vendor_str = CStr::from_ptr(vendor).to_str().unwrap_or("").to_string();
+    let model_str = CStr::from_ptr(model).to_str().unwrap_or("").to_string();
+    let port_str = CStr::from_ptr(port).to_str().unwrap_or("").to_string();
+
+    tracing::info!("Vendor: {}, Model: {}, Port: {}", vendor_str, model_str, port_str);
+
+    // Reset state to InProgress
+    {
+        let mut state = DOWNLOAD_STATE.lock().unwrap();
+        *state = DownloadState::InProgress(DownloadProgress {
+            current: 0,
+            total: 100,
+            message: "Initializing...".to_string(),
+        });
+    }
+
+    tracing::info!("Spawning background thread for download...");
+
+    // Spawn background thread to do the download
+    thread::spawn(move || {
+        tracing::info!("Background thread started, creating tokio runtime...");
+        // Create tokio runtime
+        let runtime = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                let mut state = DOWNLOAD_STATE.lock().unwrap();
+                *state = DownloadState::Complete(Err(format!("Failed to create async runtime: {}", e)));
+                return;
+            }
+        };
+
+        // Run the download
+        let result = runtime.block_on(async {
+            tracing::info!("Inside background thread async block, calling download_from_radio...");
+
+            // Progress callback that updates global state
+            let progress_fn = Arc::new(|current: usize, total: usize, msg: String| {
+                tracing::debug!("Progress update: {}/{} - {}", current, total, msg);
+                let mut state = DOWNLOAD_STATE.lock().unwrap();
+                *state = DownloadState::InProgress(DownloadProgress {
+                    current,
+                    total,
+                    message: msg,
+                });
+            });
+
+            crate::gui::radio_ops::download_from_radio(
+                port_str,
+                vendor_str,
+                model_str,
+                progress_fn,
+            )
+            .await
+        });
+
+        tracing::info!("Download completed in background thread, storing result...");
+
+        // Store result
+        let mut state = DOWNLOAD_STATE.lock().unwrap();
+        *state = DownloadState::Complete(result);
+
+        tracing::info!("Background thread exiting");
+    });
+
+    tracing::info!("start_download_async returning (background thread spawned)");
+}
+
+/// FFI: Get current download progress (returns current, total, message)
+/// Returns current progress as percentage (0-100), or -1 if not in progress
+#[no_mangle]
+pub extern "C" fn get_download_progress(
+    out_current: *mut i32,
+    out_total: *mut i32,
+    out_message: *mut *const c_char,
+) -> i32 {
+    static mut MESSAGE_BUF: Option<CString> = None;
+
+    let state = DOWNLOAD_STATE.lock().unwrap();
+    match &*state {
+        DownloadState::InProgress(progress) => {
+            unsafe {
+                if !out_current.is_null() {
+                    *out_current = progress.current as i32;
+                }
+                if !out_total.is_null() {
+                    *out_total = progress.total as i32;
+                }
+                if !out_message.is_null() {
+                    MESSAGE_BUF = Some(CString::new(progress.message.clone()).unwrap());
+                    *out_message = MESSAGE_BUF.as_ref().unwrap().as_ptr();
+                }
+            }
+            if progress.total > 0 {
+                ((progress.current as f64 / progress.total as f64) * 100.0) as i32
+            } else {
+                0
+            }
+        }
+        _ => -1, // Not in progress
+    }
+}
+
+/// FFI: Check if download is complete
+/// Returns 1 if complete, 0 if still in progress, -1 if idle
+#[no_mangle]
+pub extern "C" fn is_download_complete() -> i32 {
+    let state = DOWNLOAD_STATE.lock().unwrap();
+    match &*state {
+        DownloadState::Idle => -1,
+        DownloadState::InProgress(_) => 0,
+        DownloadState::Complete(_) => 1,
+    }
+}
+
+/// FFI: Get download result and reset state
+/// Returns NULL on success, or error message on failure
+/// After calling this, state returns to Idle
+#[no_mangle]
+pub extern "C" fn get_download_result() -> *const c_char {
+    let mut state = DOWNLOAD_STATE.lock().unwrap();
+    let result = std::mem::replace(&mut *state, DownloadState::Idle);
+
+    match result {
+        DownloadState::Complete(Ok(memories)) => {
+            // Filter out empty memories
+            let non_empty: Vec<Memory> = memories.into_iter().filter(|m| !m.empty).collect();
+
+            // Convert to CStrings
+            let mut all_cstrings = Vec::new();
+            for mem in &non_empty {
+                let strings = memory_to_row_strings(mem);
+                let cstrings: Vec<CString> = strings
+                    .into_iter()
+                    .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
+                    .collect();
+                all_cstrings.push(cstrings);
+            }
+
+            // Update global state
+            let mut data = MEMORY_DATA.lock().unwrap();
+            *data = Some(AppState {
+                memories: non_empty,
+                cstrings: all_cstrings,
+                current_file: None,
+                is_modified: false,
+            });
+
+            // Return NULL to indicate success
+            std::ptr::null()
+        }
+        DownloadState::Complete(Err(e)) => {
+            let err_msg = format!("Download failed: {}", e);
+            CString::new(err_msg).unwrap().into_raw()
+        }
+        _ => {
+            let err_msg = "Download not complete";
             CString::new(err_msg).unwrap().into_raw()
         }
     }
