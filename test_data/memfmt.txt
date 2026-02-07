@@ -1,0 +1,52 @@
+struct {
+  u8 used;
+  u8 unknown1:7,
+     lockout:1;
+  u8 group;
+  u8 unknownFF;
+} flags[1200];
+
+#seekto 0x4000;
+struct memory {
+    ul32 freq;
+    ul32 offset;
+    u8 tuning_step:4,
+       split_tuning_step:3,
+       unknown2:1;
+    u8 unknown3_0:1,
+       mode:3,
+       narrow:1,
+       fine_mode:1,
+       fine_step:2;
+    u8 tone_mode:1,
+       ctcss_mode:1,
+       dtcs_mode:1,
+       cross_mode:1,
+       unknown4_0:1,
+       split:1,
+       duplex:2;
+    u8 rtone;
+    u8 unknownctone:2,
+       ctone:6;
+    u8 unknowndtcs:1,
+       dtcs_code:7;
+    u8 unknown5_1:2,
+       cross_mode_mode:2,
+       unknown5_2:2,
+       dig_squelch:2;
+    char dv_urcall[8];
+    char dv_rpt1call[8];
+    char dv_rpt2call[8];
+    u8 unknown9:1,
+       dv_code:7;
+};
+
+struct {
+  struct memory memories[6];
+  u8 pad[16];
+} memgroups[192];
+
+//#seekto 0x10000;
+struct {
+  char name[16];
+} names[1200];

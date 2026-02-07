@@ -237,6 +237,15 @@ impl SerialPort {
             .map_err(|e| SerialError::Port(e.to_string()))
     }
 
+    /// Change the baud rate
+    pub fn set_baud_rate(&mut self, baud_rate: u32) -> Result<()> {
+        let port = self.port.as_mut().ok_or(SerialError::NotOpen)?;
+        port.set_baud_rate(baud_rate)
+            .map_err(|e| SerialError::Port(format!("Failed to set baud rate to {}: {}", baud_rate, e)))?;
+        self.config.baud_rate = baud_rate;
+        Ok(())
+    }
+
     /// Get number of bytes available to read
     pub fn bytes_to_read(&mut self) -> Result<u32> {
         let port = self.port.as_mut().ok_or(SerialError::NotOpen)?;

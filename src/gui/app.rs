@@ -82,8 +82,16 @@ impl ChirpApp {
 impl ChirpApp {
     /// Create a new CHIRP application
     pub fn new() -> Self {
+        // Initialize driver registry (must be called once at startup)
+        crate::drivers::init_drivers();
+
         // Get available radio drivers
         let drivers = list_drivers();
+        tracing::debug!("Found {} drivers after init", drivers.len());
+        for driver in &drivers {
+            tracing::debug!("  - {} {}", driver.vendor, driver.model);
+        }
+
         let mut vendors_map: HashMap<String, Vec<DriverInfo>> = HashMap::new();
 
         for driver in drivers {
@@ -94,6 +102,7 @@ impl ChirpApp {
         }
 
         let vendors: Vec<String> = vendors_map.keys().cloned().collect();
+        tracing::debug!("Vendors list: {:?}", vendors);
 
         Self {
             current_file: None,
@@ -248,6 +257,7 @@ impl ChirpApp {
                     && self.selected_model.is_some()
                     && self.selected_port.is_some()
                 {
+                    tracing::info!("USER CLICKED DOWNLOAD - Starting radio communication");
                     let port = self.selected_port.clone().unwrap();
                     let vendor = self.selected_vendor.clone().unwrap();
                     let model = self.selected_model.clone().unwrap();
@@ -308,13 +318,15 @@ impl ChirpApp {
                 self.operation_progress = None;
                 self.show_download_dialog = false;
                 match result {
-                    Ok(_memories) => {
-                        // TODO: Use actual downloaded memories
-                        // For now, use sample memories for testing
-                        self.memories = Self::create_sample_memories();
+                    Ok(memories) => {
+                        tracing::debug!("Download complete, got {} memories", memories.len());
+                        // Use actual downloaded memories
+                        self.memories = memories;
                         self.is_modified = false;
+                        self.current_file = None; // Clear file path since this is from radio
                     }
                     Err(err) => {
+                        tracing::debug!("Download failed: {}", err);
                         self.error_message = format!("Download failed: {}", err);
                         self.show_error_dialog = true;
                     }
@@ -591,6 +603,10 @@ impl ChirpApp {
 
     /// Create download dialog
     fn view_download_dialog<'a>(&self, background: Element<'a, Message>) -> Element<'a, Message> {
+        tracing::debug!("view_download_dialog called");
+        tracing::debug!("  available_vendors: {:?}", self.available_vendors);
+        tracing::debug!("  selected_vendor: {:?}", self.selected_vendor);
+
         let models: Vec<String> = if let Some(vendor) = &self.selected_vendor {
             self.available_models
                 .get(vendor)
@@ -599,6 +615,7 @@ impl ChirpApp {
         } else {
             Vec::new()
         };
+        tracing::debug!("  models: {:?}", models);
 
         let progress = self.operation_progress.as_ref().map(|(c, t, m)| (*c, *t, m.clone()));
 

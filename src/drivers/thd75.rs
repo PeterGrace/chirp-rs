@@ -26,8 +26,46 @@ const GROUP_NAME_OFFSET: usize = 1152;
 /// Number of memories
 const NUM_MEMORIES: u32 = 1200;
 
-/// Duplex modes
-const DUPLEX: &[&str] = &["", "+", "-"];
+/// Duplex mode enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Duplex {
+    Simplex = 0,  // 0b00 - split/simplex mode
+    Plus = 1,     // 0b01 - positive offset
+    Minus = 2,    // 0b10 - negative offset
+}
+
+impl Duplex {
+    fn from_bits(bits: u8) -> Self {
+        match bits & 0x03 {
+            0 => Duplex::Simplex,
+            1 => Duplex::Plus,
+            2 => Duplex::Minus,
+            _ => Duplex::Simplex, // 0b11 shouldn't occur, treat as simplex
+        }
+    }
+
+    fn to_bits(self) -> u8 {
+        self as u8
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Duplex::Simplex => "",
+            Duplex::Plus => "+",
+            Duplex::Minus => "-",
+        }
+    }
+
+    fn all() -> &'static [&'static str] {
+        &["", "+", "-"]
+    }
+}
+
+impl std::fmt::Display for Duplex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
 
 /// Tuning steps (kHz)
 const TUNE_STEPS: &[f32] = &[5.0, 6.25, 8.33, 9.0, 10.0, 12.5, 15.0, 20.0, 25.0, 30.0, 50.0, 100.0];
@@ -65,7 +103,10 @@ impl MemoryFlags {
     }
 }
 
-/// Raw memory structure (80 bytes at 0x4000)
+/// Raw memory structure (40 bytes at 0x4000)
+/// Note: The radio stores memories in 40-byte chunks, not 80 bytes as documented
+/// in some sources. The structure contains the essential fields (freq, offset, tones)
+/// and D-STAR call signs, with additional data potentially stored elsewhere.
 #[derive(Debug, Clone)]
 struct RawMemory {
     freq: u32,           // Frequency in Hz
@@ -78,7 +119,7 @@ struct RawMemory {
     dtcs_mode: u8,
     cross_mode: u8,
     split: bool,
-    duplex: u8,
+    duplex: Duplex,
     rtone: u8,
     ctone: u8,
     dtcs_code: u8,
@@ -90,8 +131,8 @@ struct RawMemory {
 }
 
 impl RawMemory {
-    /// Size of memory structure in bytes
-    const SIZE: usize = 80;
+    /// Size of memory structure in bytes (actual size in radio is 40, not 80)
+    const SIZE: usize = 40;
 
     fn from_bytes(data: &[u8]) -> RadioResult<Self> {
         if data.len() < Self::SIZE {
@@ -101,6 +142,12 @@ impl RawMemory {
             )));
         }
 
+        // Log first 40 bytes of raw memory data for debugging
+        tracing::debug!(
+            "RawMemory bytes[0..40]: {:02X?}",
+            &data[0..40.min(data.len())]
+        );
+
         let freq = read_u32_le(&data[0..4]).unwrap();
         let offset = read_u32_le(&data[4..8]).unwrap();
 
@@ -108,12 +155,18 @@ impl RawMemory {
         let mode = (data[9] >> 1) & 0x07;
         let narrow = (data[9] & 0x08) != 0;
 
-        let tone_mode = data[10] & 0x01;
-        let ctcss_mode = (data[10] >> 1) & 0x01;
+        // Byte 10 bit layout (actual layout differs from some documentation):
+        // Bits 0-1: duplex (01='+', 10='-', 00=split/simplex)
+        // Bit 2: dtcs_mode
+        // Bit 3: cross_mode
+        // Bit 5: split
+        // Bits 6-7: tone_mode/ctcss_mode flags
+        let duplex = Duplex::from_bits(data[10]); // Bits 0-1
         let dtcs_mode = (data[10] >> 2) & 0x01;
         let cross_mode = (data[10] >> 3) & 0x01;
         let split = (data[10] & 0x20) != 0;
-        let duplex = (data[10] >> 6) & 0x03;
+        let tone_mode = (data[10] >> 6) & 0x01; // Bit 6
+        let ctcss_mode = (data[10] >> 7) & 0x01; // Bit 7
 
         let rtone = data[11];
         let ctone = data[12] & 0x3F;
@@ -164,24 +217,26 @@ impl RawMemory {
         bytes[8] = self.tuning_step & 0x0F;
         bytes[9] = ((self.mode & 0x07) << 1) | if self.narrow { 0x08 } else { 0x00 };
 
-        // Tone settings
-        bytes[10] = (self.tone_mode & 0x01)
-            | ((self.ctcss_mode & 0x01) << 1)
+        // Byte 10: duplex in bits 0-1, other flags in higher bits
+        bytes[10] = self.duplex.to_bits() // Bits 0-1: duplex
             | ((self.dtcs_mode & 0x01) << 2)
             | ((self.cross_mode & 0x01) << 3)
             | (if self.split { 0x20 } else { 0x00 })
-            | ((self.duplex & 0x03) << 6);
+            | ((self.tone_mode & 0x01) << 6)
+            | ((self.ctcss_mode & 0x01) << 7);
 
         bytes[11] = self.rtone;
         bytes[12] = self.ctone & 0x3F;
         bytes[13] = self.dtcs_code & 0x7F;
         bytes[14] = self.dig_squelch & 0x03;
 
-        // D-STAR calls
+        // D-STAR calls (bytes 15-39)
         bytes[15..23].copy_from_slice(&self.dv_urcall);
         bytes[23..31].copy_from_slice(&self.dv_rpt1call);
         bytes[31..39].copy_from_slice(&self.dv_rpt2call);
         bytes[39] = self.dv_code & 0x7F;
+
+        // Note: Total size is 40 bytes. The remaining bytes (if SIZE > 40) are left as zeros.
 
         bytes
     }
@@ -189,7 +244,7 @@ impl RawMemory {
 
 /// Kenwood TH-D75 radio driver
 pub struct THD75Radio {
-    mmap: Option<MemoryMap>,
+    pub mmap: Option<MemoryMap>,
     vendor: String,
     model: String,
 }
@@ -203,12 +258,32 @@ impl THD75Radio {
         }
     }
 
+    /// Get all non-empty memories from the radio
+    pub fn get_memories(&mut self) -> RadioResult<Vec<Memory>> {
+        tracing::info!("Decoding {} memory channels from downloaded data", NUM_MEMORIES);
+        let mut memories = Vec::new();
+
+        for channel in 0..NUM_MEMORIES {
+            if let Some(mem) = self.get_memory(channel)? {
+                if !mem.empty {
+                    memories.push(mem);
+                }
+            }
+        }
+
+        tracing::info!("Found {} non-empty memories out of {} channels", memories.len(), NUM_MEMORIES);
+        Ok(memories)
+    }
+
     /// Calculate memory offset for a given channel number
     fn memory_offset(&self, number: u32) -> usize {
-        // Memories are organized in groups of 6, with 16-byte padding
-        let group = (number / 6) as usize;
-        let index = (number % 6) as usize;
-        MEMORY_OFFSET + (group * (6 * RawMemory::SIZE + 16)) + (index * RawMemory::SIZE)
+        // Memories are organized in groups of 6, with 16-byte padding after each group
+        // Each memory is 40 bytes, not 80 as documented in some older sources
+        // Formula: base + (group * (6*40 + 16)) + (index * 40)
+        const GROUP_SIZE: u32 = 6;
+        let group = (number / GROUP_SIZE) as usize;
+        let index = (number % GROUP_SIZE) as usize;
+        MEMORY_OFFSET + (group * (GROUP_SIZE as usize * RawMemory::SIZE + 16)) + (index * RawMemory::SIZE)
     }
 
     /// Calculate flags offset for a given channel number
@@ -232,15 +307,34 @@ impl THD75Radio {
         cmd.extend_from_slice(&block.to_be_bytes());
         cmd.extend_from_slice(&[0x00, 0x00]);
 
+        if block == 0 {
+            tracing::debug!("read_block 0 - sending command: {:02X?}", cmd);
+        }
+
         port.write_all(&cmd)
             .await
-            .map_err(|e| RadioError::Serial(e.to_string()))?;
+            .map_err(|e| {
+                tracing::debug!("read_block {} - write failed: {}", block, e);
+                RadioError::Serial(e.to_string())
+            })?;
+
+        port.flush().await.ok();
 
         // Read response header: "W" + block number + 0x0000
+        if block == 0 {
+            tracing::debug!("read_block 0 - waiting for header (5 bytes)");
+        }
         let mut header = [0u8; 5];
         port.read_exact(&mut header)
             .await
-            .map_err(|e| RadioError::Serial(e.to_string()))?;
+            .map_err(|e| {
+                tracing::debug!("read_block {} - read_exact header failed: {}", block, e);
+                RadioError::Serial(e.to_string())
+            })?;
+
+        if block == 0 {
+            tracing::debug!("read_block 0 - got header: {:02X?}", header);
+        }
 
         if header[0] != b'W' {
             return Err(RadioError::InvalidResponse(format!(
@@ -327,55 +421,110 @@ impl THD75Radio {
         port: &mut SerialPort,
         cmd: &str,
     ) -> RadioResult<String> {
+        // Clear any stale data before sending command
+        port.clear_input().ok();
+
         let cmd_bytes = format!("{}\r", cmd);
+        tracing::debug!("command - sending: {:?}", cmd);
         port.write_all(cmd_bytes.as_bytes())
             .await
             .map_err(|e| RadioError::Serial(e.to_string()))?;
 
-        // Read until \r
+        // Flush to ensure command is sent
+        port.flush().await.ok();
+
+        // Read until \r - use a small buffer and read more efficiently
         let mut response = Vec::new();
-        let mut byte = [0u8; 1];
+        let mut buffer = [0u8; 64];
         let start = Instant::now();
 
         while start.elapsed() < Duration::from_secs(2) {
-            match port.read(&mut byte).await {
-                Ok(1) => {
-                    response.push(byte[0]);
-                    if byte[0] == b'\r' {
-                        break;
+            match port.read(&mut buffer).await {
+                Ok(n) => {
+                    if n > 0 {
+                        for i in 0..n {
+                            response.push(buffer[i]);
+                            if buffer[i] == b'\r' {
+                                // Found terminator
+                                let result = String::from_utf8(response)
+                                    .map(|s| s.trim().to_string())
+                                    .map_err(|_| RadioError::InvalidResponse("Invalid UTF-8".to_string()))?;
+                                tracing::debug!("command - received: {:?}", result);
+                                return Ok(result);
+                            }
+                        }
+                    } else {
+                        // No data yet, small delay before retry
+                        tokio::time::sleep(Duration::from_millis(10)).await;
                     }
                 }
-                _ => continue,
+                Err(_) => {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
             }
         }
 
-        String::from_utf8(response)
+        // Timeout - return what we got
+        let result = String::from_utf8(response)
             .map(|s| s.trim().to_string())
-            .map_err(|_| RadioError::InvalidResponse("Invalid UTF-8".to_string()))
+            .map_err(|_| RadioError::InvalidResponse("Invalid UTF-8".to_string()))?;
+
+        if result.is_empty() {
+            Err(RadioError::NoResponse)
+        } else {
+            tracing::debug!("command - received (incomplete): {:?}", result);
+            Ok(result)
+        }
     }
 
     /// Get radio ID
     async fn get_id(&self, port: &mut SerialPort) -> RadioResult<String> {
-        let response = self.command(port, "ID").await?;
-        if response.starts_with("ID ") {
-            Ok(response.split_whitespace().nth(1).unwrap_or("").to_string())
-        } else {
-            Err(RadioError::NoResponse)
+        tracing::debug!("get_id - sending ID command");
+
+        // Try up to 3 times if we get garbage
+        for attempt in 1..=3 {
+            let response = self.command(port, "ID").await
+                .map_err(|e| {
+                    tracing::debug!("get_id - command failed on attempt {}: {}", attempt, e);
+                    e
+                })?;
+            tracing::debug!("get_id - got response on attempt {}: {:?}", attempt, response);
+
+            if response.starts_with("ID ") {
+                return Ok(response.split_whitespace().nth(1).unwrap_or("").to_string());
+            } else if response == "?" && attempt < 3 {
+                // Radio confused, clear and retry
+                tracing::debug!("get_id - got '?', clearing and retrying");
+                port.clear_all().ok();
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                continue;
+            }
         }
+
+        tracing::debug!("get_id - all attempts failed");
+        Err(RadioError::NoResponse)
     }
 
     /// Detect baud rate
     async fn detect_baud(&self, port: &mut SerialPort) -> RadioResult<String> {
         // Note: serialport doesn't support runtime baud rate changes easily
         // For now, we'll assume 9600 is set correctly at port opening
+        tracing::debug!("detect_baud - clearing input buffer");
+        port.clear_input().map_err(|e| RadioError::Serial(format!("Failed to clear buffer: {}", e)))?;
+
+        tracing::debug!("detect_baud - sending wake-up CRs");
         port.write_all(b"\r\r")
             .await
-            .map_err(|e| RadioError::Serial(e.to_string()))?;
+            .map_err(|e| RadioError::Serial(format!("Failed to send wake-up: {}", e)))?;
+
+        // Wait a bit for radio to wake up
+        tokio::time::sleep(Duration::from_millis(100)).await;
 
         // Clear any pending data
         let mut buf = [0u8; 32];
         let _ = port.read(&mut buf).await;
 
+        tracing::debug!("detect_baud - getting ID");
         self.get_id(port).await
     }
 
@@ -418,9 +567,7 @@ impl THD75Radio {
         }
 
         // Duplex
-        if (raw.duplex as usize) < DUPLEX.len() {
-            mem.duplex = DUPLEX[raw.duplex as usize].to_string();
-        }
+        mem.duplex = raw.duplex.as_str().to_string();
 
         // Tuning step
         if (raw.tuning_step as usize) < TUNE_STEPS.len() {
@@ -457,6 +604,40 @@ impl THD75Radio {
             mem.skip = "S".to_string();
         }
 
+        // Log the decoded memory for debugging
+        tracing::debug!(
+            "Decoded Memory #{}: name=\"{}\" freq={} offset={} mode=\"{}\" duplex=\"{}\" tmode=\"{}\" rtone={} ctone={} dtcs={} skip=\"{}\" tuning_step={}",
+            mem.number,
+            mem.name,
+            mem.freq,
+            mem.offset,
+            mem.mode,
+            mem.duplex,
+            mem.tmode,
+            mem.rtone,
+            mem.ctone,
+            mem.dtcs,
+            mem.skip,
+            mem.tuning_step
+        );
+
+        // Also log the raw memory data for comparison
+        tracing::debug!(
+            "  Raw data: freq={} offset={} mode={} duplex={} rtone={} ctone={} dtcs_code={} tone_mode={} ctcss_mode={} dtcs_mode={} cross_mode={} tuning_step={}",
+            raw.freq,
+            raw.offset,
+            raw.mode,
+            raw.duplex,
+            raw.rtone,
+            raw.ctone,
+            raw.dtcs_code,
+            raw.tone_mode,
+            raw.ctcss_mode,
+            raw.dtcs_mode,
+            raw.cross_mode,
+            raw.tuning_step
+        );
+
         Ok(mem)
     }
 }
@@ -487,7 +668,7 @@ impl Radio for THD75Radio {
             "DTCS".to_string(),
             "Cross".to_string(),
         ];
-        features.valid_duplexes = DUPLEX.iter().map(|s| s.to_string()).collect();
+        features.valid_duplexes = Duplex::all().iter().map(|s| s.to_string()).collect();
         features.valid_tuning_steps = TUNE_STEPS.to_vec();
         features.valid_tones = TONES.to_vec();
         features.valid_dtcs_codes = DTCS_CODES.to_vec();
@@ -522,6 +703,10 @@ impl Radio for THD75Radio {
 
         // Read raw memory
         let mem_off = self.memory_offset(number);
+        tracing::debug!(
+            "Reading memory #{} from offset 0x{:04X} (decimal {})",
+            number, mem_off, mem_off
+        );
         let mem_data = mmap
             .get(mem_off, Some(RawMemory::SIZE))
             .map_err(|e| RadioError::Radio(e.to_string()))?;
@@ -561,22 +746,35 @@ impl CloneModeRadio for THD75Radio {
         // Detect baud and enter programming mode
         self.detect_baud(port).await?;
 
+        tracing::debug!("Entering programming mode");
         let response = self.command(port, "0M PROGRAM").await?;
+        tracing::debug!("Got response: {:?}", response);
         if response != "0M" {
             return Err(RadioError::NoResponse);
         }
 
-        // Switch to high speed (Note: requires port reconfiguration in real implementation)
-        // port.set_baud_rate(57600)?;
+        // Radio is now in programming mode and expecting us to switch to high speed
+        // DO NOT read anything else - immediately switch baud rates
+        tracing::debug!("Switching to 57600 baud immediately");
 
-        // Read one byte (ACK)
-        let mut ack = [0u8; 1];
-        let _ = port.read(&mut ack).await;
+        port.set_baud_rate(57600)
+            .map_err(|e| RadioError::Serial(format!("Failed to change baud rate: {}", e)))?;
+
+        // Brief pause for both PC and radio to stabilize at new baud rate
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Clear buffers to start clean communication at new baud rate
+        tracing::debug!("Clearing buffers at 57600 baud");
+        port.clear_all().ok();
 
         let num_blocks = MEMSIZE / BLOCK_SIZE;
         let mut data = Vec::with_capacity(MEMSIZE);
 
+        tracing::debug!("Starting block download ({} blocks)", num_blocks);
         for block in 0..num_blocks {
+            if block % 100 == 0 {
+                tracing::debug!("Reading block {}/{}", block, num_blocks);
+            }
             let block_data = self.read_block(port, block as u16).await?;
             data.extend_from_slice(&block_data);
 
@@ -589,6 +787,7 @@ impl CloneModeRadio for THD75Radio {
                 callback(status.current, status.max, &status.message);
             }
         }
+        tracing::debug!("Block download complete");
 
         // End programming mode
         port.write_all(b"E")
@@ -715,8 +914,121 @@ mod tests {
         assert_eq!(radio.name_offset(0), NAMES_OFFSET);
         assert_eq!(radio.memory_offset(0), MEMORY_OFFSET);
 
-        // Test channel 6 (next group)
+        // Test channel 6 (next group) - groups of 6 with 40-byte memories + 16-byte padding
         assert_eq!(radio.flags_offset(6), FLAGS_OFFSET + 24);
-        assert_eq!(radio.memory_offset(6), MEMORY_OFFSET + (6 * 80 + 16));
+        assert_eq!(radio.memory_offset(6), MEMORY_OFFSET + (6 * 40 + 16));
+
+        // Test memory within a group
+        assert_eq!(radio.memory_offset(1), MEMORY_OFFSET + 40);
+        assert_eq!(radio.memory_offset(5), MEMORY_OFFSET + (5 * 40));
+
+        // Test memory 32 (previously problematic)
+        // Group 5 (32/6=5), index 2 (32%6=2)
+        // Offset = 0x4000 + (5 * (6*40 + 16)) + (2 * 40) = 0x4000 + (5 * 256) + 80 = 0x4550
+        assert_eq!(radio.memory_offset(32), 0x4550);
+
+        // Test memory 40 (previously problematic)
+        // Group 6 (40/6=6), index 4 (40%6=4)
+        // Offset = 0x4000 + (6 * 256) + (4 * 40) = 0x4000 + 1536 + 160 = 0x46A0
+        assert_eq!(radio.memory_offset(40), 0x46A0);
+    }
+
+    #[test]
+    fn test_parse_real_memories() {
+        // Load the actual radio dump for testing
+        let dump_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("radio_dump.bin");
+
+        // Skip test if dump file doesn't exist (e.g., in CI)
+        if !dump_path.exists() {
+            eprintln!("Skipping test: radio_dump.bin not found");
+            return;
+        }
+
+        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let mmap = crate::memmap::MemoryMap::new(data);
+        let mut radio = THD75Radio::new();
+        radio.process_mmap(&mmap).expect("Failed to process memory map");
+
+        // Test memory #0 - APRS
+        let mem0 = radio.get_memory(0).expect("Failed to get memory 0");
+        assert!(mem0.is_some());
+        let mem0 = mem0.unwrap();
+        assert_eq!(mem0.number, 0);
+        assert_eq!(mem0.name, "APRS");
+        assert_eq!(mem0.freq, 144_390_000);
+        assert_eq!(mem0.offset, 600_000);
+        assert_eq!(mem0.mode, "FM");
+
+        // Test memory #3 - PhilMont W3QV (Tone mode)
+        let mem3 = radio.get_memory(3).expect("Failed to get memory 3");
+        assert!(mem3.is_some());
+        let mem3 = mem3.unwrap();
+        assert_eq!(mem3.number, 3);
+        assert_eq!(mem3.name, "PhilMont W3QV");
+        assert_eq!(mem3.freq, 147_030_000);
+        assert_eq!(mem3.offset, 600_000);
+        assert_eq!(mem3.duplex, "+");
+        assert_eq!(mem3.tmode, "Tone");
+        assert_eq!(mem3.rtone, 88.5);
+        assert_eq!(mem3.ctone, 91.5);
+
+        // Test memory #32 - N3CB (previously problematic)
+        let mem32 = radio.get_memory(32).expect("Failed to get memory 32");
+        assert!(mem32.is_some());
+        let mem32 = mem32.unwrap();
+        assert_eq!(mem32.number, 32);
+        assert_eq!(mem32.name, "N3CB");
+        assert_eq!(mem32.freq, 448_675_000);
+        assert_eq!(mem32.offset, 5_000_000);
+        assert_eq!(mem32.mode, "FM");
+        assert_eq!(mem32.duplex, "-");
+
+        // Test memory #40 - W3EOC (previously problematic)
+        let mem40 = radio.get_memory(40).expect("Failed to get memory 40");
+        assert!(mem40.is_some());
+        let mem40 = mem40.unwrap();
+        assert_eq!(mem40.number, 40);
+        assert_eq!(mem40.name, "W3EOC");
+        assert_eq!(mem40.freq, 441_950_000);
+        assert_eq!(mem40.offset, 5_000_000);
+        assert_eq!(mem40.duplex, "+");
+        assert_eq!(mem40.tmode, "Tone");
+        assert_eq!(mem40.ctone, 100.0);
+
+        // Test memory #50 - KB3AJF
+        let mem50 = radio.get_memory(50).expect("Failed to get memory 50");
+        assert!(mem50.is_some());
+        let mem50 = mem50.unwrap();
+        assert_eq!(mem50.number, 50);
+        assert_eq!(mem50.name, "KB3AJF");
+        assert_eq!(mem50.freq, 447_975_000);
+        assert_eq!(mem50.offset, 5_000_000);
+        assert_eq!(mem50.duplex, "-");
+
+        // Test that we find the expected number of non-empty memories
+        let memories = radio.get_memories().expect("Failed to get memories");
+        assert_eq!(memories.len(), 91, "Expected 91 non-empty memories");
+    }
+
+    #[test]
+    fn test_empty_memory() {
+        let dump_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("radio_dump.bin");
+
+        if !dump_path.exists() {
+            eprintln!("Skipping test: radio_dump.bin not found");
+            return;
+        }
+
+        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let mmap = crate::memmap::MemoryMap::new(data);
+        let mut radio = THD75Radio::new();
+        radio.process_mmap(&mmap).expect("Failed to process memory map");
+
+        // Test that empty memories return None
+        // Memory #63 should be empty (based on the CSV data)
+        let mem63 = radio.get_memory(63).expect("Failed to get memory 63");
+        assert!(mem63.is_none(), "Memory #63 should be empty");
     }
 }

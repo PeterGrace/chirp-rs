@@ -31,6 +31,11 @@ pub fn download_dialog(
     selected_port: Option<String>,
     progress: Option<(usize, usize, String)>,
 ) -> Element<'static, Message> {
+    tracing::debug!("download_dialog called");
+    tracing::debug!("  vendors: {:?}", vendors);
+    tracing::debug!("  models: {:?}", models);
+    tracing::debug!("  ports: {:?}", ports);
+
     let mut content = column![
         text("Download from Radio").size(24),
         text("Select radio model and serial port").size(14),
@@ -40,7 +45,10 @@ pub fn download_dialog(
     .align_items(Alignment::Start);
 
     // Radio vendor selection
+    tracing::debug!("vendors.is_empty() = {}", vendors.is_empty());
     if !vendors.is_empty() {
+        tracing::debug!("Adding vendor picker");
+
         let vendor_list = pick_list(
             vendors,
             selected_vendor.clone(),

@@ -1,12 +1,20 @@
 [package]
 name = "chirp-rs"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [[bin]]
 name = "chirp-rs"
 path = "src/main.rs"
 required-features = ["gui"]
+
+[[bin]]
+name = "radio-dump"
+path = "src/bin/radio_dump.rs"
+
+[[bin]]
+name = "parse-dump"
+path = "src/bin/parse_dump.rs"
 
 [dependencies]
 anyhow = "1.0.101"
@@ -20,6 +28,10 @@ serde_json = "1.0.149"
 serialport = "4.8.1"
 thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["full"] }
+tracing = "0.1.41"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.19", features = ["fmt", "env-filter"] }
+console-subscriber = "0.4.1"
 
 [dev-dependencies]
 base64 = "0.22.1"

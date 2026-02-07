@@ -17,7 +17,7 @@ pub use core::{
     constants::*, features::RadioFeatures, memory::{DVMemory, Memory}, power::PowerLevel,
     validation,
 };
-pub use drivers::{list_drivers, CloneModeRadio, Radio, RadioError};
+pub use drivers::{init_drivers, list_drivers, CloneModeRadio, Radio, RadioError};
 pub use formats::{load_img, save_img, Metadata};
 pub use memmap::MemoryMap;
 pub use serial::{BlockProtocol, ProgressCallback, SerialConfig, SerialPort};
