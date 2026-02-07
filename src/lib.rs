@@ -1,7 +1,7 @@
 // CHIRP-RS: Rust port of CHIRP radio programming software
 // Copyright 2024 - Licensed under GPLv3
 
-#![recursion_limit = "1024"]
+#![recursion_limit = "2048"]
 
 pub mod bitwise;
 pub mod core;
