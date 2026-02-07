@@ -23,6 +23,11 @@ cpp! {{
     #include <QtWidgets/QWidget>
     #include <QtWidgets/QMessageBox>
     #include <QtWidgets/QFileDialog>
+    #include <QtWidgets/QDialog>
+    #include <QtWidgets/QDialogButtonBox>
+    #include <QtWidgets/QFormLayout>
+    #include <QtWidgets/QLineEdit>
+    #include <QtWidgets/QComboBox>
     #include <QtCore/QString>
     #include <QtCore/QStringList>
 
@@ -42,6 +47,9 @@ cpp! {{
         const char* rpt2;
     };
 
+    // Forward declare Memory struct (we only need pointer to it)
+    struct Memory;
+
     // Declare Rust FFI functions
     extern "C" {
         size_t get_memory_count();
@@ -51,6 +59,10 @@ cpp! {{
         void new_file();
         const char* get_current_filename();
         void free_error_message(const char* msg);
+        const Memory* get_memory_by_row(size_t row);
+        const char* update_memory(size_t row, uint64_t freq, const char* name,
+                                 const char* duplex, uint64_t offset, const char* mode,
+                                 const char* tmode, float rtone, float ctone);
     }
 
     // Helper function to refresh table from Rust data
@@ -72,6 +84,103 @@ cpp! {{
             table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
             table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
             table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
+        }
+    }
+
+    // Helper function to show edit dialog for a memory
+    void showEditDialog(QWidget* parent, QTableWidget* table, int row) {
+        // Get current row data
+        RowData data = get_memory_row(row);
+
+        // Create dialog
+        QDialog dialog(parent);
+        dialog.setWindowTitle(QString("Edit Memory %1").arg(QString::fromUtf8(data.loc)));
+        QFormLayout* layout = new QFormLayout(&dialog);
+
+        // Create input fields
+        QLineEdit* freqEdit = new QLineEdit(QString::fromUtf8(data.freq));
+        QLineEdit* nameEdit = new QLineEdit(QString::fromUtf8(data.name));
+
+        QComboBox* duplexCombo = new QComboBox();
+        duplexCombo->addItems({"", "+", "-", "split", "off"});
+        duplexCombo->setCurrentText(QString::fromUtf8(data.duplex));
+
+        QLineEdit* offsetEdit = new QLineEdit(QString::fromUtf8(data.offset));
+
+        QComboBox* modeCombo = new QComboBox();
+        modeCombo->addItems({"FM", "NFM", "AM", "DV", "USB", "LSB"});
+        modeCombo->setCurrentText(QString::fromUtf8(data.mode));
+
+        QComboBox* tmodeCombo = new QComboBox();
+        tmodeCombo->addItems({"", "Tone", "TSQL", "DTCS", "Cross"});
+        tmodeCombo->setCurrentText(QString::fromUtf8(data.tmode));
+
+        QLineEdit* rtoneEdit = new QLineEdit();
+        QLineEdit* ctoneEdit = new QLineEdit();
+
+        // Parse current tone value
+        QString toneStr = QString::fromUtf8(data.tone);
+        if (!toneStr.isEmpty()) {
+            // Assume rtone for now (could be more sophisticated)
+            rtoneEdit->setText(toneStr);
+            ctoneEdit->setText(toneStr);
+        }
+
+        // Add fields to form
+        layout->addRow("Frequency (MHz):", freqEdit);
+        layout->addRow("Name:", nameEdit);
+        layout->addRow("Duplex:", duplexCombo);
+        layout->addRow("Offset (MHz):", offsetEdit);
+        layout->addRow("Mode:", modeCombo);
+        layout->addRow("Tone Mode:", tmodeCombo);
+        layout->addRow("TX Tone (Hz):", rtoneEdit);
+        layout->addRow("RX Tone (Hz):", ctoneEdit);
+
+        // Add buttons
+        QDialogButtonBox* buttons = new QDialogButtonBox(
+            QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        layout->addRow(buttons);
+
+        // Show dialog
+        if (dialog.exec() == QDialog::Accepted) {
+            // Parse frequency (convert MHz string to Hz)
+            QString freqStr = freqEdit->text();
+            double freqMHz = freqStr.toDouble();
+            uint64_t freqHz = static_cast<uint64_t>(freqMHz * 1000000.0);
+
+            // Parse offset
+            QString offsetStr = offsetEdit->text();
+            double offsetMHz = offsetStr.toDouble();
+            uint64_t offsetHz = static_cast<uint64_t>(offsetMHz * 1000000.0);
+
+            // Parse tones
+            float rtone = rtoneEdit->text().toFloat();
+            float ctone = ctoneEdit->text().toFloat();
+            if (rtone == 0.0f) rtone = 88.5f;  // Default
+            if (ctone == 0.0f) ctone = 88.5f;
+
+            // Call Rust to update memory
+            const char* error = update_memory(
+                row,
+                freqHz,
+                nameEdit->text().toUtf8().constData(),
+                duplexCombo->currentText().toUtf8().constData(),
+                offsetHz,
+                modeCombo->currentText().toUtf8().constData(),
+                tmodeCombo->currentText().toUtf8().constData(),
+                rtone,
+                ctone
+            );
+
+            if (error) {
+                QMessageBox::critical(parent, "Error", QString::fromUtf8(error));
+                free_error_message(error);
+            } else {
+                // Refresh the table
+                refreshTable(table);
+            }
         }
     }
 }}
@@ -393,6 +502,76 @@ pub unsafe extern "C" fn free_error_message(ptr: *const c_char) {
     }
 }
 
+/// FFI: Get a memory by row index for editing
+/// Returns a copy of the Memory that can be edited
+#[no_mangle]
+pub extern "C" fn get_memory_by_row(row: usize) -> *const Memory {
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        if row < state.memories.len() {
+            // Return pointer to the memory (it's safe because MEMORY_DATA lives forever)
+            return &state.memories[row] as *const Memory;
+        }
+    }
+    std::ptr::null()
+}
+
+/// FFI: Update a memory at a specific row
+/// Returns NULL on success, or error message on failure
+#[no_mangle]
+pub unsafe extern "C" fn update_memory(
+    row: usize,
+    freq: u64,
+    name: *const c_char,
+    duplex: *const c_char,
+    offset: u64,
+    mode: *const c_char,
+    tmode: *const c_char,
+    rtone: f32,
+    ctone: f32,
+) -> *const c_char {
+    let mut data = MEMORY_DATA.lock().unwrap();
+    let state = match data.as_mut() {
+        Some(s) => s,
+        None => return CString::new("No data loaded").unwrap().into_raw(),
+    };
+
+    if row >= state.memories.len() {
+        return CString::new("Invalid row index").unwrap().into_raw();
+    }
+
+    // Convert C strings to Rust
+    let name_str = CStr::from_ptr(name).to_str().unwrap_or("").to_string();
+    let duplex_str = CStr::from_ptr(duplex).to_str().unwrap_or("").to_string();
+    let mode_str = CStr::from_ptr(mode).to_str().unwrap_or("FM").to_string();
+    let tmode_str = CStr::from_ptr(tmode).to_str().unwrap_or("").to_string();
+
+    // Update the memory
+    let mem = &mut state.memories[row];
+    mem.freq = freq;
+    mem.name = name_str;
+    mem.duplex = duplex_str;
+    mem.offset = offset;
+    mem.mode = mode_str;
+    mem.tmode = tmode_str;
+    mem.rtone = rtone;
+    mem.ctone = ctone;
+
+    // Regenerate CStrings for this row
+    let strings = memory_to_row_strings(mem);
+    let cstrings: Vec<CString> = strings
+        .into_iter()
+        .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
+        .collect();
+    state.cstrings[row] = cstrings;
+
+    // Mark as modified
+    state.is_modified = true;
+
+    // Return NULL to indicate success
+    std::ptr::null()
+}
+
 /// Create sample test memories
 fn create_test_memories() -> Vec<Memory> {
     vec![
@@ -558,6 +737,12 @@ pub fn run_qt_app() -> i32 {
                 QMessageBox::information(window, "Upload",
                     "Upload to radio functionality coming soon");
             });
+
+            // Connect double-click event to edit dialog
+            QObject::connect(table, &QTableWidget::cellDoubleClicked,
+                [=](int row, int column) {
+                    showEditDialog(window, table, row);
+                });
 
             // Populate table with initial data
             refreshTable(table);
