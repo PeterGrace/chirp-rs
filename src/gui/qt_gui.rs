@@ -63,6 +63,7 @@ cpp! {{
         const char* save_file(const char* path);
         void new_file();
         const char* get_current_filename();
+        const char* get_current_filepath();
         void free_error_message(const char* msg);
         const Memory* get_memory_by_row(size_t row);
         const char* update_memory(size_t row, uint64_t freq, const char* name,
@@ -496,10 +497,20 @@ fn memory_to_row_strings(mem: &Memory) -> Vec<String> {
         } else {
             String::new()
         };
-        (mem.tmode.clone(), tone_str, String::new(), String::new(), String::new())
+        (
+            mem.tmode.clone(),
+            tone_str,
+            String::new(),
+            String::new(),
+            String::new(),
+        )
     };
 
-    let power_str = mem.power.as_ref().map(|p| p.label().to_string()).unwrap_or_default();
+    let power_str = mem
+        .power
+        .as_ref()
+        .map(|p| p.label().to_string())
+        .unwrap_or_default();
 
     vec![
         mem.number.to_string(),
@@ -609,7 +620,11 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
     let c_str = CStr::from_ptr(path);
     let path_str = match c_str.to_str() {
         Ok(s) => s,
-        Err(_) => return CString::new("Invalid file path encoding").unwrap().into_raw(),
+        Err(_) => {
+            return CString::new("Invalid file path encoding")
+                .unwrap()
+                .into_raw()
+        }
     };
     let path = PathBuf::from(path_str);
 
@@ -687,7 +702,11 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
     let c_str = CStr::from_ptr(path);
     let path_str = match c_str.to_str() {
         Ok(s) => s,
-        Err(_) => return CString::new("Invalid file path encoding").unwrap().into_raw(),
+        Err(_) => {
+            return CString::new("Invalid file path encoding")
+                .unwrap()
+                .into_raw()
+        }
     };
     let path = PathBuf::from(path_str);
 
@@ -700,19 +719,36 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
     // For now, we only support TH-D75
     // TODO: Detect radio type from current_file or add a way to track it
     use crate::drivers::thd75::THD75Radio;
-    let mut radio = THD75Radio::new();
+    use crate::formats::{save_img, Metadata};
 
-    // Convert memories back to MemoryMap
-    // This requires encoding the memories into the raw format
-    // For now, return an error as encoding is not yet implemented
-    let err_msg = "Save functionality not yet implemented - encoding memories to .img format is TODO";
-    return CString::new(err_msg).unwrap().into_raw();
+    let radio = THD75Radio::new();
 
-    // TODO: Implement this:
-    // 1. Create a new MemoryMap
-    // 2. Encode each memory using THD75Radio::set_memory()
-    // 3. Save the MemoryMap using save_img()
-    // 4. Update state.current_file and set is_modified = false
+    // Encode memories to MemoryMap
+    let mmap = match radio.encode_memories(&state.memories) {
+        Ok(m) => m,
+        Err(e) => {
+            return CString::new(format!("Failed to encode memories: {}", e))
+                .unwrap()
+                .into_raw()
+        }
+    };
+
+    // Create metadata
+    let metadata = Metadata::new("Kenwood", "TH-D75");
+
+    // Save to file
+    if let Err(e) = save_img(&path, &mmap, &metadata) {
+        return CString::new(format!("Failed to save file: {}", e))
+            .unwrap()
+            .into_raw();
+    }
+
+    // Update state
+    state.current_file = Some(path);
+    state.is_modified = false;
+
+    // Return NULL to indicate success
+    std::ptr::null()
 }
 
 /// FFI: Create a new empty file
@@ -744,6 +780,26 @@ pub extern "C" fn get_current_filename() -> *const c_char {
         FILENAME_BUF = Some(CString::new(filename).unwrap());
         FILENAME_BUF.as_ref().unwrap().as_ptr()
     }
+}
+
+/// FFI: Get the current file path
+/// Returns pointer to static string (caller must NOT free), or NULL if no file
+#[no_mangle]
+pub extern "C" fn get_current_filepath() -> *const c_char {
+    static mut FILEPATH_BUF: Option<CString> = None;
+
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        if let Some(path) = &state.current_file {
+            if let Some(path_str) = path.to_str() {
+                unsafe {
+                    FILEPATH_BUF = Some(CString::new(path_str).unwrap());
+                    return FILEPATH_BUF.as_ref().unwrap().as_ptr();
+                }
+            }
+        }
+    }
+    std::ptr::null()
 }
 
 /// FFI: Free an error message string returned by load_file or save_file
@@ -824,7 +880,11 @@ pub extern "C" fn get_serial_ports() -> *const c_char {
     static mut PORTS_BUF: Option<CString> = None;
 
     let ports = match serialport::available_ports() {
-        Ok(ports) => ports.into_iter().map(|p| p.port_name).collect::<Vec<_>>().join(","),
+        Ok(ports) => ports
+            .into_iter()
+            .map(|p| p.port_name)
+            .collect::<Vec<_>>()
+            .join(","),
         Err(_) => String::new(),
     };
 
@@ -840,7 +900,8 @@ pub extern "C" fn get_ctcss_tones() -> *const c_char {
     static mut TONES_BUF: Option<CString> = None;
 
     use crate::core::constants::TONES;
-    let tones_str = TONES.iter()
+    let tones_str = TONES
+        .iter()
         .map(|t| format!("{:.1}", t))
         .collect::<Vec<_>>()
         .join(",");
@@ -880,13 +941,8 @@ pub unsafe extern "C" fn download_from_radio(
             // TODO: Update progress bar
         });
 
-        crate::gui::radio_ops::download_from_radio(
-            port_str,
-            vendor_str,
-            model_str,
-            progress_fn,
-        )
-        .await
+        crate::gui::radio_ops::download_from_radio(port_str, vendor_str, model_str, progress_fn)
+            .await
     });
 
     match result {
@@ -954,7 +1010,8 @@ pub unsafe extern "C" fn start_download_async(
             Ok(rt) => rt,
             Err(e) => {
                 let mut state = DOWNLOAD_STATE.lock().unwrap();
-                *state = DownloadState::Complete(Err(format!("Failed to create async runtime: {}", e)));
+                *state =
+                    DownloadState::Complete(Err(format!("Failed to create async runtime: {}", e)));
                 return;
             }
         };
@@ -971,13 +1028,8 @@ pub unsafe extern "C" fn start_download_async(
                 });
             });
 
-            crate::gui::radio_ops::download_from_radio(
-                port_str,
-                vendor_str,
-                model_str,
-                progress_fn,
-            )
-            .await
+            crate::gui::radio_ops::download_from_radio(port_str, vendor_str, model_str, progress_fn)
+                .await
         });
 
         // Store result
@@ -1277,18 +1329,63 @@ pub fn run_qt_app() -> i32 {
             });
 
             fileMenu->addAction("&Save", [=]() {
-                QMessageBox::information(window, "Save",
-                    "Save functionality not yet implemented.\n\n"
-                    "Memory encoding to .img format is TODO.");
+                const char* filepath = get_current_filepath();
+                if (!filepath) {
+                    // No current file, show Save As dialog
+                    QString fileName = QFileDialog::getSaveFileName(window,
+                        "Save CHIRP Image", "", "CHIRP Image (*.img)");
+                    if (fileName.isEmpty()) {
+                        return;
+                    }
+                    const char* error = save_file(fileName.toUtf8().constData());
+                    if (error) {
+                        QString errorMsg = QString::fromUtf8(error);
+                        QMessageBox::critical(window, "Failed to Save File",
+                            QString("Could not save file:\n%1\n\nError: %2")
+                            .arg(fileName).arg(errorMsg));
+                        free_error_message(error);
+                    } else {
+                        // Update window title with new filename
+                        const char* filename = get_current_filename();
+                        window->setWindowTitle(QString("CHIRP-RS - %1").arg(QString::fromUtf8(filename)));
+                        QMessageBox::information(window, "Save Successful",
+                            QString("File saved successfully:\n%1").arg(fileName));
+                    }
+                } else {
+                    // Save to current file
+                    const char* error = save_file(filepath);
+                    if (error) {
+                        QString errorMsg = QString::fromUtf8(error);
+                        QMessageBox::critical(window, "Failed to Save File",
+                            QString("Could not save file:\n%1\n\nError: %2")
+                            .arg(QString::fromUtf8(filepath)).arg(errorMsg));
+                        free_error_message(error);
+                    } else {
+                        QMessageBox::information(window, "Save Successful",
+                            QString("File saved successfully:\n%1")
+                            .arg(QString::fromUtf8(filepath)));
+                    }
+                }
             });
 
             fileMenu->addAction("Save &As...", [=]() {
                 QString fileName = QFileDialog::getSaveFileName(window,
                     "Save CHIRP Image", "", "CHIRP Image (*.img)");
                 if (!fileName.isEmpty()) {
-                    QMessageBox::information(window, "Save As",
-                        "Save functionality not yet implemented.\n\n"
-                        "Memory encoding to .img format is TODO.");
+                    const char* error = save_file(fileName.toUtf8().constData());
+                    if (error) {
+                        QString errorMsg = QString::fromUtf8(error);
+                        QMessageBox::critical(window, "Failed to Save File",
+                            QString("Could not save file:\n%1\n\nError: %2")
+                            .arg(fileName).arg(errorMsg));
+                        free_error_message(error);
+                    } else {
+                        // Update window title with new filename
+                        const char* filename = get_current_filename();
+                        window->setWindowTitle(QString("CHIRP-RS - %1").arg(QString::fromUtf8(filename)));
+                        QMessageBox::information(window, "Save Successful",
+                            QString("File saved successfully:\n%1").arg(fileName));
+                    }
                 }
             });
 
@@ -1322,4 +1419,3 @@ pub fn run_qt_app() -> i32 {
         })
     }
 }
-

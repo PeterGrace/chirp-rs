@@ -6,7 +6,7 @@ use chirp_rs::serial::SerialPort;
 use std::env;
 use std::fs::File;
 use std::io::Write;
-use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan, prelude::*};
+use tracing_subscriber::{fmt::format::FmtSpan, prelude::*, EnvFilter};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -119,9 +119,10 @@ async fn download_raw_memory(
 
     // Only TH-D75 is supported for now
     if vendor != "Kenwood" || model != "TH-D75" {
-        return Err(chirp_rs::drivers::RadioError::Radio(
-            format!("Unsupported radio: {} {}", vendor, model)
-        ));
+        return Err(chirp_rs::drivers::RadioError::Radio(format!(
+            "Unsupported radio: {} {}",
+            vendor, model
+        )));
     }
 
     // Create driver instance
@@ -148,8 +149,14 @@ async fn download_raw_memory(
 }
 
 fn write_hex_dump(file: &mut File, data: &[u8]) -> std::io::Result<()> {
-    writeln!(file, "Offset(h) 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  ASCII")?;
-    writeln!(file, "=========================================================================")?;
+    writeln!(
+        file,
+        "Offset(h) 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  ASCII"
+    )?;
+    writeln!(
+        file,
+        "========================================================================="
+    )?;
 
     for (offset, chunk) in data.chunks(16).enumerate() {
         // Offset

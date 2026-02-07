@@ -55,7 +55,9 @@ pub trait ToBytes {
 
 impl FromBytes for u8 {
     fn from_bytes_be(data: &[u8]) -> Result<Self, String> {
-        data.get(0).copied().ok_or_else(|| "Insufficient data".to_string())
+        data.get(0)
+            .copied()
+            .ok_or_else(|| "Insufficient data".to_string())
     }
 
     fn from_bytes_le(data: &[u8]) -> Result<Self, String> {
@@ -135,14 +137,8 @@ mod tests {
         assert_eq!(u16::from_bytes_be(&data).unwrap(), 0x1234);
         assert_eq!(u16::from_bytes_le(&data).unwrap(), 0x3412);
 
-        assert_eq!(
-            u16::from_bytes(&data, Endianness::Big).unwrap(),
-            0x1234
-        );
-        assert_eq!(
-            u16::from_bytes(&data, Endianness::Little).unwrap(),
-            0x3412
-        );
+        assert_eq!(u16::from_bytes(&data, Endianness::Big).unwrap(), 0x1234);
+        assert_eq!(u16::from_bytes(&data, Endianness::Little).unwrap(), 0x3412);
     }
 
     #[test]

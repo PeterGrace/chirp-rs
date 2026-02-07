@@ -66,7 +66,9 @@ impl MockSerialPort {
     /// Check if a specific command was written
     pub fn was_written(&self, expected: &[u8]) -> bool {
         let buffer = self.write_buffer.lock().unwrap();
-        buffer.windows(expected.len()).any(|window| window == expected)
+        buffer
+            .windows(expected.len())
+            .any(|window| window == expected)
     }
 
     /// Get number of bytes available to read

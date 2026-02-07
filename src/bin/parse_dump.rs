@@ -13,9 +13,18 @@ fn main() -> anyhow::Result<()> {
     if args.len() < 2 {
         eprintln!("Usage: {} <dump_file.bin> [memory_number]", args[0]);
         eprintln!("\nExamples:");
-        eprintln!("  {} radio_dump.bin           # Show all non-empty memories", args[0]);
-        eprintln!("  {} radio_dump.bin 40        # Show only memory #40", args[0]);
-        eprintln!("  {} radio_dump.bin 32-50     # Show memories 32-50", args[0]);
+        eprintln!(
+            "  {} radio_dump.bin           # Show all non-empty memories",
+            args[0]
+        );
+        eprintln!(
+            "  {} radio_dump.bin 40        # Show only memory #40",
+            args[0]
+        );
+        eprintln!(
+            "  {} radio_dump.bin 32-50     # Show memories 32-50",
+            args[0]
+        );
         std::process::exit(1);
     }
 
@@ -82,10 +91,25 @@ fn main() -> anyhow::Result<()> {
 
 fn print_memory(mem: &chirp_rs::core::Memory) {
     println!("Memory #{}: \"{}\"", mem.number, mem.name);
-    println!("  Frequency:    {} Hz ({:.4} MHz)", mem.freq, mem.freq as f64 / 1_000_000.0);
-    println!("  Offset:       {} Hz ({:.2} MHz)", mem.offset, mem.offset as f64 / 1_000_000.0);
+    println!(
+        "  Frequency:    {} Hz ({:.4} MHz)",
+        mem.freq,
+        mem.freq as f64 / 1_000_000.0
+    );
+    println!(
+        "  Offset:       {} Hz ({:.2} MHz)",
+        mem.offset,
+        mem.offset as f64 / 1_000_000.0
+    );
     println!("  Mode:         {}", mem.mode);
-    println!("  Duplex:       {}", if mem.duplex.is_empty() { "none" } else { &mem.duplex });
+    println!(
+        "  Duplex:       {}",
+        if mem.duplex.is_empty() {
+            "none"
+        } else {
+            &mem.duplex
+        }
+    );
 
     // Show D-STAR fields for DV mode
     if mem.mode == "DV" {
@@ -103,7 +127,14 @@ fn print_memory(mem: &chirp_rs::core::Memory) {
         }
     } else {
         // Show tone information for non-DV modes
-        println!("  Tone Mode:    {}", if mem.tmode.is_empty() { "none" } else { &mem.tmode });
+        println!(
+            "  Tone Mode:    {}",
+            if mem.tmode.is_empty() {
+                "none"
+            } else {
+                &mem.tmode
+            }
+        );
 
         match mem.tmode.as_str() {
             "Tone" => {
@@ -125,7 +156,14 @@ fn print_memory(mem: &chirp_rs::core::Memory) {
         }
     }
 
-    println!("  Skip:         {}", if mem.skip.is_empty() { "none" } else { &mem.skip });
+    println!(
+        "  Skip:         {}",
+        if mem.skip.is_empty() {
+            "none"
+        } else {
+            &mem.skip
+        }
+    );
     println!("  Tuning Step:  {} kHz", mem.tuning_step);
     println!();
 }
@@ -166,7 +204,11 @@ fn print_raw_data(radio: &THD75Radio, mmap: &MemoryMap, number: u32) -> anyhow::
         if bytes.len() >= 4 {
             let freq = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
             if freq != 0 && freq != 0xFFFFFFFF {
-                println!("  Decoded freq:     {} Hz ({:.4} MHz)", freq, freq as f64 / 1_000_000.0);
+                println!(
+                    "  Decoded freq:     {} Hz ({:.4} MHz)",
+                    freq,
+                    freq as f64 / 1_000_000.0
+                );
             }
         }
     }

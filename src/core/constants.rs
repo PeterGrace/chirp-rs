@@ -42,8 +42,8 @@ pub const ALL_DTCS_CODES: [u16; 512] = {
 
 /// Radio modes - master list that should remain stable
 pub const MODES: &[&str] = &[
-    "WFM", "FM", "NFM", "AM", "NAM", "DV", "USB", "LSB", "CW", "RTTY", "DIG", "PKT", "NCW",
-    "NCWR", "CWR", "P25", "Auto", "RTTYR", "FSK", "FSKR", "DMR", "DN",
+    "WFM", "FM", "NFM", "AM", "NAM", "DV", "USB", "LSB", "CW", "RTTY", "DIG", "PKT", "NCW", "NCWR",
+    "CWR", "P25", "Auto", "RTTYR", "FSK", "FSKR", "DMR", "DN",
 ];
 
 /// Tone modes
@@ -62,7 +62,9 @@ pub const CROSS_MODES: &[&str] = &[
 ];
 
 /// Tuning steps (in kHz)
-pub const TUNING_STEPS: &[f32] = &[5.0, 6.25, 10.0, 12.5, 15.0, 20.0, 25.0, 30.0, 50.0, 100.0, 125.0, 200.0, 9.0, 1.0, 2.5];
+pub const TUNING_STEPS: &[f32] = &[
+    5.0, 6.25, 10.0, 12.5, 15.0, 20.0, 25.0, 30.0, 50.0, 100.0, 125.0, 200.0, 9.0, 1.0, 2.5,
+];
 
 /// Common tuning steps (default for RadioFeatures)
 pub const COMMON_TUNING_STEPS: &[f32] = &[5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 50.0, 100.0];

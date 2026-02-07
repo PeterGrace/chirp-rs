@@ -133,10 +133,7 @@ impl SerialPort {
             while total_read < buf.len() {
                 match port.read(&mut buf[total_read..]) {
                     Ok(0) => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "Port closed",
-                        ))
+                        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Port closed"))
                     }
                     Ok(n) => total_read += n,
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
@@ -240,8 +237,9 @@ impl SerialPort {
     /// Change the baud rate
     pub fn set_baud_rate(&mut self, baud_rate: u32) -> Result<()> {
         let port = self.port.as_mut().ok_or(SerialError::NotOpen)?;
-        port.set_baud_rate(baud_rate)
-            .map_err(|e| SerialError::Port(format!("Failed to set baud rate to {}: {}", baud_rate, e)))?;
+        port.set_baud_rate(baud_rate).map_err(|e| {
+            SerialError::Port(format!("Failed to set baud rate to {}: {}", baud_rate, e))
+        })?;
         self.config.baud_rate = baud_rate;
         Ok(())
     }

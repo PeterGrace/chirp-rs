@@ -29,9 +29,9 @@ const NUM_MEMORIES: u32 = 1200;
 /// Duplex mode enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Duplex {
-    Simplex = 0,  // 0b00 - split/simplex mode
-    Plus = 1,     // 0b01 - positive offset
-    Minus = 2,    // 0b10 - negative offset
+    Simplex = 0, // 0b00 - split/simplex mode
+    Plus = 1,    // 0b01 - positive offset
+    Minus = 2,   // 0b10 - negative offset
 }
 
 impl Duplex {
@@ -68,7 +68,9 @@ impl std::fmt::Display for Duplex {
 }
 
 /// Tuning steps (kHz)
-const TUNE_STEPS: &[f32] = &[5.0, 6.25, 8.33, 9.0, 10.0, 12.5, 15.0, 20.0, 25.0, 30.0, 50.0, 100.0];
+const TUNE_STEPS: &[f32] = &[
+    5.0, 6.25, 8.33, 9.0, 10.0, 12.5, 15.0, 20.0, 25.0, 30.0, 50.0, 100.0,
+];
 
 /// Cross modes
 const CROSS_MODES: &[&str] = &["DTCS->", "Tone->DTCS", "DTCS->Tone", "Tone->Tone"];
@@ -109,8 +111,8 @@ impl MemoryFlags {
 /// and D-STAR call signs, with additional data potentially stored elsewhere.
 #[derive(Debug, Clone)]
 struct RawMemory {
-    freq: u32,           // Frequency in Hz
-    offset: u32,         // Offset in Hz
+    freq: u32,   // Frequency in Hz
+    offset: u32, // Offset in Hz
     tuning_step: u8,
     mode: u8,
     narrow: bool,
@@ -153,12 +155,12 @@ impl RawMemory {
 
         let tuning_step = data[8] & 0x0F;
         let mode_bits = (data[9] >> 1) & 0x07;
-        let narrow_flag = (data[9] & 0x10) != 0;  // Bit 4
+        let narrow_flag = (data[9] & 0x10) != 0; // Bit 4
 
         // For TH-D75, the "narrow" flag (bit 4) actually indicates DV mode
         // If set, this is a D-STAR/DV memory; otherwise use mode_bits
-        let mode = if narrow_flag { 1 } else { mode_bits };  // 1 = DV
-        let narrow = (data[9] & 0x08) != 0;  // Actual narrow flag is bit 3
+        let mode = if narrow_flag { 1 } else { mode_bits }; // 1 = DV
+        let narrow = (data[9] & 0x08) != 0; // Actual narrow flag is bit 3
 
         // Byte 10 bit layout (actual layout differs from some documentation):
         // Bits 0-1: duplex (01='+', 10='-', 00=split/simplex)
@@ -265,7 +267,10 @@ impl THD75Radio {
 
     /// Get all non-empty memories from the radio
     pub fn get_memories(&mut self) -> RadioResult<Vec<Memory>> {
-        tracing::info!("Decoding {} memory channels from downloaded data", NUM_MEMORIES);
+        tracing::info!(
+            "Decoding {} memory channels from downloaded data",
+            NUM_MEMORIES
+        );
         let mut memories = Vec::new();
 
         for channel in 0..NUM_MEMORIES {
@@ -276,8 +281,57 @@ impl THD75Radio {
             }
         }
 
-        tracing::info!("Found {} non-empty memories out of {} channels", memories.len(), NUM_MEMORIES);
+        tracing::info!(
+            "Found {} non-empty memories out of {} channels",
+            memories.len(),
+            NUM_MEMORIES
+        );
         Ok(memories)
+    }
+
+    /// Encode all memories to a MemoryMap (reverse of get_memories)
+    pub fn encode_memories(&self, memories: &[Memory]) -> RadioResult<MemoryMap> {
+        // Create empty memory map filled with 0xFF (empty memory pattern)
+        let mut data = vec![0xFFu8; MEMSIZE];
+
+        // Initialize padding regions with 0x00
+        for i in 0..0x2000 {
+            data[i] = 0x00;
+        }
+
+        // Process each memory
+        for mem in memories {
+            let channel = mem.number;
+            if channel >= NUM_MEMORIES {
+                return Err(RadioError::InvalidMemory(channel));
+            }
+
+            // Encode memory to raw format
+            let (raw, flags) = self.encode_memory(mem)?;
+
+            // Write raw memory data
+            let mem_off = self.memory_offset(channel);
+            let raw_bytes = raw.to_bytes();
+            data[mem_off..mem_off + RawMemory::SIZE].copy_from_slice(&raw_bytes);
+
+            // Write flags
+            let flags_off = self.flags_offset(channel);
+            let flags_bytes = flags.to_bytes();
+            data[flags_off..flags_off + 4].copy_from_slice(&flags_bytes);
+
+            // Write name (pad to 16 bytes with zeros)
+            let name_off = self.name_offset(channel);
+            // Clear name area first
+            for i in 0..16 {
+                data[name_off + i] = 0x00;
+            }
+            // Then write name bytes
+            let name_bytes = mem.name.as_bytes();
+            let name_len = name_bytes.len().min(16);
+            data[name_off..name_off + name_len].copy_from_slice(&name_bytes[..name_len]);
+        }
+
+        Ok(MemoryMap::new(data))
     }
 
     /// Calculate memory offset for a given channel number
@@ -288,7 +342,9 @@ impl THD75Radio {
         const GROUP_SIZE: u32 = 6;
         let group = (number / GROUP_SIZE) as usize;
         let index = (number % GROUP_SIZE) as usize;
-        MEMORY_OFFSET + (group * (GROUP_SIZE as usize * RawMemory::SIZE + 16)) + (index * RawMemory::SIZE)
+        MEMORY_OFFSET
+            + (group * (GROUP_SIZE as usize * RawMemory::SIZE + 16))
+            + (index * RawMemory::SIZE)
     }
 
     /// Calculate flags offset for a given channel number
@@ -302,11 +358,7 @@ impl THD75Radio {
     }
 
     /// Read a block from the radio
-    async fn read_block(
-        &self,
-        port: &mut SerialPort,
-        block: u16,
-    ) -> RadioResult<Vec<u8>> {
+    async fn read_block(&self, port: &mut SerialPort, block: u16) -> RadioResult<Vec<u8>> {
         // Send read command: "R" + block number (big-endian u16) + 0x0000
         let mut cmd = vec![b'R'];
         cmd.extend_from_slice(&block.to_be_bytes());
@@ -316,12 +368,10 @@ impl THD75Radio {
             tracing::debug!("read_block 0 - sending command: {:02X?}", cmd);
         }
 
-        port.write_all(&cmd)
-            .await
-            .map_err(|e| {
-                tracing::debug!("read_block {} - write failed: {}", block, e);
-                RadioError::Serial(e.to_string())
-            })?;
+        port.write_all(&cmd).await.map_err(|e| {
+            tracing::debug!("read_block {} - write failed: {}", block, e);
+            RadioError::Serial(e.to_string())
+        })?;
 
         port.flush().await.ok();
 
@@ -330,12 +380,10 @@ impl THD75Radio {
             tracing::debug!("read_block 0 - waiting for header (5 bytes)");
         }
         let mut header = [0u8; 5];
-        port.read_exact(&mut header)
-            .await
-            .map_err(|e| {
-                tracing::debug!("read_block {} - read_exact header failed: {}", block, e);
-                RadioError::Serial(e.to_string())
-            })?;
+        port.read_exact(&mut header).await.map_err(|e| {
+            tracing::debug!("read_block {} - read_exact header failed: {}", block, e);
+            RadioError::Serial(e.to_string())
+        })?;
 
         if block == 0 {
             tracing::debug!("read_block 0 - got header: {:02X?}", header);
@@ -381,12 +429,7 @@ impl THD75Radio {
     }
 
     /// Write a block to the radio
-    async fn write_block(
-        &self,
-        port: &mut SerialPort,
-        block: u16,
-        data: &[u8],
-    ) -> RadioResult<()> {
+    async fn write_block(&self, port: &mut SerialPort, block: u16, data: &[u8]) -> RadioResult<()> {
         // Send write command: "W" + block number + size + data
         let mut cmd = vec![b'W'];
         cmd.extend_from_slice(&block.to_be_bytes());
@@ -421,11 +464,7 @@ impl THD75Radio {
     }
 
     /// Send a command and get response
-    async fn command(
-        &self,
-        port: &mut SerialPort,
-        cmd: &str,
-    ) -> RadioResult<String> {
+    async fn command(&self, port: &mut SerialPort, cmd: &str) -> RadioResult<String> {
         // Clear any stale data before sending command
         port.clear_input().ok();
 
@@ -453,7 +492,9 @@ impl THD75Radio {
                                 // Found terminator
                                 let result = String::from_utf8(response)
                                     .map(|s| s.trim().to_string())
-                                    .map_err(|_| RadioError::InvalidResponse("Invalid UTF-8".to_string()))?;
+                                    .map_err(|_| {
+                                        RadioError::InvalidResponse("Invalid UTF-8".to_string())
+                                    })?;
                                 tracing::debug!("command - received: {:?}", result);
                                 return Ok(result);
                             }
@@ -488,12 +529,15 @@ impl THD75Radio {
 
         // Try up to 3 times if we get garbage
         for attempt in 1..=3 {
-            let response = self.command(port, "ID").await
-                .map_err(|e| {
-                    tracing::debug!("get_id - command failed on attempt {}: {}", attempt, e);
-                    e
-                })?;
-            tracing::debug!("get_id - got response on attempt {}: {:?}", attempt, response);
+            let response = self.command(port, "ID").await.map_err(|e| {
+                tracing::debug!("get_id - command failed on attempt {}: {}", attempt, e);
+                e
+            })?;
+            tracing::debug!(
+                "get_id - got response on attempt {}: {:?}",
+                attempt,
+                response
+            );
 
             if response.starts_with("ID ") {
                 return Ok(response.split_whitespace().nth(1).unwrap_or("").to_string());
@@ -515,7 +559,8 @@ impl THD75Radio {
         // Note: serialport doesn't support runtime baud rate changes easily
         // For now, we'll assume 9600 is set correctly at port opening
         tracing::debug!("detect_baud - clearing input buffer");
-        port.clear_input().map_err(|e| RadioError::Serial(format!("Failed to clear buffer: {}", e)))?;
+        port.clear_input()
+            .map_err(|e| RadioError::Serial(format!("Failed to clear buffer: {}", e)))?;
 
         tracing::debug!("detect_baud - sending wake-up CRs");
         port.write_all(b"\r\r")
@@ -533,8 +578,154 @@ impl THD75Radio {
         self.get_id(port).await
     }
 
+    /// Find tone index from frequency value
+    fn find_tone_index(tone: f32) -> RadioResult<u8> {
+        TONES
+            .iter()
+            .position(|&t| (t - tone).abs() < 0.1)
+            .map(|idx| idx as u8)
+            .ok_or_else(|| RadioError::Radio(format!("Invalid tone: {}", tone)))
+    }
+
+    /// Find DTCS code index from code value
+    fn find_dtcs_index(dtcs: u16) -> RadioResult<u8> {
+        DTCS_CODES
+            .iter()
+            .position(|&d| d == dtcs)
+            .map(|idx| idx as u8)
+            .ok_or_else(|| RadioError::Radio(format!("Invalid DTCS code: {}", dtcs)))
+    }
+
+    /// Find tuning step index from kHz value
+    fn find_tuning_step_index(step: f32) -> RadioResult<u8> {
+        TUNE_STEPS
+            .iter()
+            .position(|&s| (s - step).abs() < 0.01)
+            .map(|idx| idx as u8)
+            .ok_or_else(|| RadioError::Radio(format!("Invalid tuning step: {}", step)))
+    }
+
+    /// Find mode index from mode string
+    fn find_mode_index(mode: &str) -> RadioResult<u8> {
+        THD75_MODES
+            .iter()
+            .position(|&m| m == mode)
+            .map(|idx| idx as u8)
+            .ok_or_else(|| RadioError::Radio(format!("Invalid mode: {}", mode)))
+    }
+
+    /// Convert duplex string to Duplex enum
+    fn parse_duplex(duplex: &str) -> RadioResult<Duplex> {
+        match duplex {
+            "" => Ok(Duplex::Simplex),
+            "+" => Ok(Duplex::Plus),
+            "-" => Ok(Duplex::Minus),
+            _ => Err(RadioError::Radio(format!("Invalid duplex: {}", duplex))),
+        }
+    }
+
+    /// Convert Memory struct to RawMemory (reverse of decode_memory)
+    fn encode_memory(&self, mem: &Memory) -> RadioResult<(RawMemory, MemoryFlags)> {
+        // Convert frequency and offset (u64 → u32)
+        let freq = mem.freq as u32;
+        let offset = mem.offset as u32;
+
+        // Find indexes
+        let tuning_step = Self::find_tuning_step_index(mem.tuning_step)?;
+        let mode = Self::find_mode_index(&mem.mode)?;
+        let duplex = Self::parse_duplex(&mem.duplex)?;
+
+        // Determine narrow flag based on mode
+        let narrow = mem.mode == "NFM";
+
+        // Handle tones/DTCS
+        let rtone = if mem.rtone > 0.0 {
+            Self::find_tone_index(mem.rtone)?
+        } else {
+            0
+        };
+
+        let ctone = if mem.ctone > 0.0 {
+            Self::find_tone_index(mem.ctone)?
+        } else {
+            0
+        };
+
+        let dtcs_code = if mem.dtcs > 0 {
+            Self::find_dtcs_index(mem.dtcs)?
+        } else {
+            0
+        };
+
+        // Parse tone mode flags
+        let (tone_mode, ctcss_mode, dtcs_mode, cross_mode) = match mem.tmode.as_str() {
+            "Tone" => (1, 0, 0, 0),
+            "TSQL" => (0, 1, 0, 0),
+            "DTCS" => (0, 0, 1, 0),
+            "Cross" => (0, 0, 0, 1),
+            _ => (0, 0, 0, 0),
+        };
+
+        // Handle D-STAR fields (for DV mode only)
+        let mut dv_urcall = [0u8; 8];
+        let mut dv_rpt1call = [0u8; 8];
+        let mut dv_rpt2call = [0u8; 8];
+        let dv_code = mem.dv_code;
+
+        if mode == 1 {
+            // DV mode
+            // Copy D-STAR call signs, padding with zeros
+            let urcall_bytes = mem.dv_urcall.as_bytes();
+            let rpt1_bytes = mem.dv_rpt1call.as_bytes();
+            let rpt2_bytes = mem.dv_rpt2call.as_bytes();
+
+            dv_urcall[..urcall_bytes.len().min(8)]
+                .copy_from_slice(&urcall_bytes[..urcall_bytes.len().min(8)]);
+            dv_rpt1call[..rpt1_bytes.len().min(8)]
+                .copy_from_slice(&rpt1_bytes[..rpt1_bytes.len().min(8)]);
+            dv_rpt2call[..rpt2_bytes.len().min(8)]
+                .copy_from_slice(&rpt2_bytes[..rpt2_bytes.len().min(8)]);
+        }
+
+        let raw = RawMemory {
+            freq,
+            offset,
+            tuning_step,
+            mode,
+            narrow,
+            tone_mode,
+            ctcss_mode,
+            dtcs_mode,
+            cross_mode,
+            split: false, // Not used in basic memories
+            duplex,
+            rtone,
+            ctone,
+            dtcs_code,
+            dig_squelch: 0, // Default
+            dv_urcall,
+            dv_rpt1call,
+            dv_rpt2call,
+            dv_code,
+        };
+
+        let flags = MemoryFlags {
+            used: 0x00, // 0x00 = used, 0xFF = empty
+            lockout: mem.skip == "S",
+            group: 0, // Default group
+        };
+
+        Ok((raw, flags))
+    }
+
     /// Convert raw memory to Memory struct
-    fn decode_memory(&self, number: u32, raw: &RawMemory, name: &str, flags: &MemoryFlags) -> RadioResult<Memory> {
+    fn decode_memory(
+        &self,
+        number: u32,
+        raw: &RawMemory,
+        name: &str,
+        flags: &MemoryFlags,
+    ) -> RadioResult<Memory> {
         let mut mem = Memory::new(number);
 
         mem.number = number;
@@ -683,9 +874,10 @@ impl Radio for THD75Radio {
             return Err(RadioError::InvalidMemory(number));
         }
 
-        let mmap = self.mmap.as_ref().ok_or(RadioError::Radio(
-            "Memory map not loaded".to_string(),
-        ))?;
+        let mmap = self
+            .mmap
+            .as_ref()
+            .ok_or(RadioError::Radio("Memory map not loaded".to_string()))?;
 
         // Read flags
         let flags_off = self.flags_offset(number);
@@ -703,7 +895,9 @@ impl Radio for THD75Radio {
         let mem_off = self.memory_offset(number);
         tracing::debug!(
             "Reading memory #{} from offset 0x{:04X} (decimal {})",
-            number, mem_off, mem_off
+            number,
+            mem_off,
+            mem_off
         );
         let mem_data = mmap
             .get(mem_off, Some(RawMemory::SIZE))
@@ -725,9 +919,37 @@ impl Radio for THD75Radio {
         Ok(Some(mem))
     }
 
-    fn set_memory(&mut self, _memory: &Memory) -> RadioResult<()> {
-        // TODO: Implement memory encoding
-        Err(RadioError::Unsupported("set_memory not yet implemented".to_string()))
+    fn set_memory(&mut self, memory: &Memory) -> RadioResult<()> {
+        // Encode memory first (before borrowing mmap)
+        let (raw, flags) = self.encode_memory(memory)?;
+
+        // Calculate offsets
+        let mem_off = self.memory_offset(memory.number);
+        let flags_off = self.flags_offset(memory.number);
+        let name_off = self.name_offset(memory.number);
+
+        // Prepare data
+        let raw_bytes = raw.to_bytes();
+        let flags_bytes = flags.to_bytes();
+        let mut name_bytes = [0u8; 16];
+        let name_slice = memory.name.as_bytes();
+        let name_len = name_slice.len().min(16);
+        name_bytes[..name_len].copy_from_slice(&name_slice[..name_len]);
+
+        // Now borrow mmap mutably and write
+        let mmap = self
+            .mmap
+            .as_mut()
+            .ok_or(RadioError::Radio("Memory map not loaded".to_string()))?;
+
+        mmap.set_bytes(mem_off, &raw_bytes)
+            .map_err(|e| RadioError::Radio(e.to_string()))?;
+        mmap.set_bytes(flags_off, &flags_bytes)
+            .map_err(|e| RadioError::Radio(e.to_string()))?;
+        mmap.set_bytes(name_off, &name_bytes)
+            .map_err(|e| RadioError::Radio(e.to_string()))?;
+
+        Ok(())
     }
 }
 
@@ -934,8 +1156,8 @@ mod tests {
     #[test]
     fn test_parse_real_memories() {
         // Load the actual radio dump for testing
-        let dump_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("test_data/radio_dump.bin");
+        let dump_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
 
         // Skip test if dump file doesn't exist (e.g., in CI)
         if !dump_path.exists() {
@@ -946,7 +1168,9 @@ mod tests {
         let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
         let mmap = crate::memmap::MemoryMap::new(data);
         let mut radio = THD75Radio::new();
-        radio.process_mmap(&mmap).expect("Failed to process memory map");
+        radio
+            .process_mmap(&mmap)
+            .expect("Failed to process memory map");
 
         // Test memory #0 - APRS
         let mem0 = radio.get_memory(0).expect("Failed to get memory 0");
@@ -1011,8 +1235,8 @@ mod tests {
 
     #[test]
     fn test_empty_memory() {
-        let dump_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("test_data/radio_dump.bin");
+        let dump_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
 
         if !dump_path.exists() {
             eprintln!("Skipping test: radio_dump.bin not found");
@@ -1022,7 +1246,9 @@ mod tests {
         let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
         let mmap = crate::memmap::MemoryMap::new(data);
         let mut radio = THD75Radio::new();
-        radio.process_mmap(&mmap).expect("Failed to process memory map");
+        radio
+            .process_mmap(&mmap)
+            .expect("Failed to process memory map");
 
         // Test that empty memories return None
         // Memory #63 should be empty (based on the CSV data)
@@ -1032,8 +1258,8 @@ mod tests {
 
     #[test]
     fn test_dv_memories() {
-        let dump_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("test_data/radio_dump.bin");
+        let dump_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
 
         if !dump_path.exists() {
             eprintln!("Skipping test: radio_dump.bin not found");
@@ -1043,7 +1269,9 @@ mod tests {
         let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
         let mmap = crate::memmap::MemoryMap::new(data);
         let mut radio = THD75Radio::new();
-        radio.process_mmap(&mmap).expect("Failed to process memory map");
+        radio
+            .process_mmap(&mmap)
+            .expect("Failed to process memory map");
 
         // Test memory #1 - Eaglevi CQCQCQ (DV memory with empty D-STAR fields)
         let mem1 = radio.get_memory(1).expect("Failed to get memory 1");
@@ -1076,5 +1304,154 @@ mod tests {
         assert_eq!(mem102.dv_rpt1call, "W3POG");
         // RPT2CALL might be empty or populated - just verify it's been parsed
         assert_eq!(mem102.tmode, "");
+    }
+
+    #[test]
+    fn test_encode_decode_roundtrip() {
+        // Load real radio dump
+        let dump_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+
+        if !dump_path.exists() {
+            eprintln!("Skipping test: radio_dump.bin not found");
+            return;
+        }
+
+        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let mmap = MemoryMap::new(data);
+        let mut radio = THD75Radio::new();
+        radio
+            .process_mmap(&mmap)
+            .expect("Failed to process memory map");
+
+        // Decode memory #3
+        let mem3 = radio
+            .get_memory(3)
+            .expect("Failed to get memory 3")
+            .unwrap();
+
+        // Encode it back
+        let (raw, flags) = radio.encode_memory(&mem3).expect("Failed to encode memory");
+
+        // Verify critical fields match original
+        assert_eq!(raw.freq, 147_030_000);
+        assert_eq!(raw.offset, 600_000);
+        assert_eq!(raw.duplex, Duplex::Plus);
+        assert_eq!(flags.used, 0x00);
+        assert_eq!(raw.tone_mode, 1); // Tone mode
+        assert_eq!(raw.rtone, 8); // 88.5 Hz is index 8
+    }
+
+    #[test]
+    fn test_encode_memories_full() {
+        let dump_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+
+        if !dump_path.exists() {
+            eprintln!("Skipping test: radio_dump.bin not found");
+            return;
+        }
+
+        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let mmap = MemoryMap::new(data);
+        let mut radio = THD75Radio::new();
+        radio
+            .process_mmap(&mmap)
+            .expect("Failed to process memory map");
+
+        // Get all memories
+        let memories = radio.get_memories().expect("Failed to get memories");
+
+        // Encode them back
+        let encoded_mmap = radio
+            .encode_memories(&memories)
+            .expect("Failed to encode memories");
+
+        // Decode again
+        let mut radio2 = THD75Radio::new();
+        radio2
+            .process_mmap(&encoded_mmap)
+            .expect("Failed to process encoded memory map");
+        let memories2 = radio2
+            .get_memories()
+            .expect("Failed to get memories from encoded map");
+
+        // Should have same count
+        assert_eq!(memories.len(), memories2.len());
+
+        // Spot check a few memories
+        let mem0 = &memories[0];
+        let mem0_2 = memories2.iter().find(|m| m.number == 0).unwrap();
+        assert_eq!(mem0.freq, mem0_2.freq);
+        assert_eq!(mem0.name, mem0_2.name);
+        assert_eq!(mem0.mode, mem0_2.mode);
+
+        // Check memory #3 in detail
+        let mem3 = memories.iter().find(|m| m.number == 3).unwrap();
+        let mem3_2 = memories2.iter().find(|m| m.number == 3).unwrap();
+        assert_eq!(mem3.freq, mem3_2.freq);
+        assert_eq!(mem3.offset, mem3_2.offset);
+        assert_eq!(mem3.duplex, mem3_2.duplex);
+        assert_eq!(mem3.tmode, mem3_2.tmode);
+        assert_eq!(mem3.rtone, mem3_2.rtone);
+    }
+
+    #[test]
+    fn test_encode_dv_memory() {
+        // Test encoding a D-STAR memory with call signs
+        let mut mem = Memory::new(100);
+        mem.freq = 438_287_500;
+        mem.mode = "DV".to_string();
+        mem.duplex = "-".to_string();
+        mem.offset = 5_000_000;
+        mem.dv_urcall = "4000".to_string();
+        mem.dv_rpt1call = "W3POG".to_string();
+        mem.dv_rpt2call = "".to_string();
+        mem.dv_code = 0;
+
+        let radio = THD75Radio::new();
+        let (raw, _) = radio
+            .encode_memory(&mem)
+            .expect("Failed to encode DV memory");
+
+        assert_eq!(raw.mode, 1); // DV mode
+        assert_eq!(
+            String::from_utf8_lossy(&raw.dv_urcall).trim_end_matches('\0'),
+            "4000"
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&raw.dv_rpt1call).trim_end_matches('\0'),
+            "W3POG"
+        );
+    }
+
+    #[test]
+    fn test_helper_functions() {
+        // Test tone lookup
+        assert_eq!(THD75Radio::find_tone_index(88.5).unwrap(), 8);
+        assert_eq!(THD75Radio::find_tone_index(100.0).unwrap(), 12);
+        assert!(THD75Radio::find_tone_index(999.9).is_err());
+
+        // Test DTCS lookup
+        assert_eq!(THD75Radio::find_dtcs_index(23).unwrap(), 0);
+        assert_eq!(THD75Radio::find_dtcs_index(754).unwrap(), 103);
+        assert!(THD75Radio::find_dtcs_index(9999).is_err());
+
+        // Test tuning step lookup
+        assert_eq!(THD75Radio::find_tuning_step_index(5.0).unwrap(), 0);
+        assert_eq!(THD75Radio::find_tuning_step_index(12.5).unwrap(), 5);
+        assert!(THD75Radio::find_tuning_step_index(7.5).is_err());
+
+        // Test mode lookup
+        assert_eq!(THD75Radio::find_mode_index("FM").unwrap(), 0);
+        assert_eq!(THD75Radio::find_mode_index("DV").unwrap(), 1);
+        assert_eq!(THD75Radio::find_mode_index("NFM").unwrap(), 6);
+        assert!(THD75Radio::find_mode_index("INVALID").is_err());
+
+        // Test duplex parsing
+        assert_eq!(THD75Radio::parse_duplex("").unwrap(), Duplex::Simplex);
+        assert_eq!(THD75Radio::parse_duplex("+").unwrap(), Duplex::Plus);
+        assert_eq!(THD75Radio::parse_duplex("-").unwrap(), Duplex::Minus);
+        assert!(THD75Radio::parse_duplex("invalid").is_err());
     }
 }

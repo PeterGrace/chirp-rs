@@ -28,8 +28,12 @@ pub async fn download_from_radio(
     let driver_info = get_driver(&vendor, &model)
         .ok_or_else(|| format!("Unknown radio: {} {}", vendor, model))?;
 
-    tracing::debug!("Found driver: {} {} (clone_mode: {})",
-              driver_info.vendor, driver_info.model, driver_info.is_clone_mode);
+    tracing::debug!(
+        "Found driver: {} {} (clone_mode: {})",
+        driver_info.vendor,
+        driver_info.model,
+        driver_info.is_clone_mode
+    );
 
     // Open serial port with appropriate settings
     let serial_config = SerialConfig::new(9600)
@@ -41,11 +45,14 @@ pub async fn download_from_radio(
 
     // Set DTR and RTS - required for Kenwood radios to enter programming mode
     tracing::debug!("Setting DTR/RTS");
-    port.set_dtr(true).map_err(|e| format!("Failed to set DTR: {}", e))?;
-    port.set_rts(false).map_err(|e| format!("Failed to set RTS: {}", e))?;
+    port.set_dtr(true)
+        .map_err(|e| format!("Failed to set DTR: {}", e))?;
+    port.set_rts(false)
+        .map_err(|e| format!("Failed to set RTS: {}", e))?;
 
     // Clear buffers
-    port.clear_all().map_err(|e| format!("Failed to clear buffers: {}", e))?;
+    port.clear_all()
+        .map_err(|e| format!("Failed to clear buffers: {}", e))?;
 
     tracing::debug!("Opened serial port {}", port_name);
 
@@ -76,9 +83,11 @@ async fn download_clone_mode(
     let mut driver = THD75Radio::new();
 
     // Create progress callback
-    let status_callback = Some(Box::new(move |current: usize, total: usize, message: &str| {
-        progress_fn(current, total, message.to_string());
-    }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>);
+    let status_callback = Some(
+        Box::new(move |current: usize, total: usize, message: &str| {
+            progress_fn(current, total, message.to_string());
+        }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
+    );
 
     // Download from radio
     let _mmap = driver
@@ -108,9 +117,11 @@ async fn download_command_mode(
     let mut driver = IC9700Radio::new_band(1);
 
     // Create progress callback
-    let status_callback = Some(Box::new(move |current: usize, total: usize, message: &str| {
-        progress_fn(current, total, message.to_string());
-    }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>);
+    let status_callback = Some(
+        Box::new(move |current: usize, total: usize, message: &str| {
+            progress_fn(current, total, message.to_string());
+        }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
+    );
 
     // Download memories
     let memories = driver
@@ -188,9 +199,11 @@ async fn upload_command_mode(
     let mut driver = IC9700Radio::new_band(1);
 
     // Create progress callback
-    let status_callback = Some(Box::new(move |current: usize, total: usize, message: &str| {
-        progress_fn(current, total, message.to_string());
-    }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>);
+    let status_callback = Some(
+        Box::new(move |current: usize, total: usize, message: &str| {
+            progress_fn(current, total, message.to_string());
+        }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
+    );
 
     // Upload memories
     driver

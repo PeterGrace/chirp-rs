@@ -59,19 +59,19 @@ const BANDS: &[(u32, u32)] = &[
 #[derive(Debug)]
 struct RawMemory {
     bank: u8,
-    number: u16,      // BCD
+    number: u16, // BCD
     select_memory: u8,
-    freq: u64,        // BCD, little-endian, 5 bytes (10 digits)
-    mode: u8,         // BCD
+    freq: u64, // BCD, little-endian, 5 bytes (10 digits)
+    mode: u8,  // BCD
     filter: u8,
-    data_mode: u8,    // BCD
-    duplex: u8,       // 4 bits
-    tmode: u8,        // 4 bits
-    dig_sql: u8,      // 4 bits
-    rtone: u16,       // BCD, 3 bytes
-    ctone: u16,       // BCD, 3 bytes
+    data_mode: u8, // BCD
+    duplex: u8,    // 4 bits
+    tmode: u8,     // 4 bits
+    dig_sql: u8,   // 4 bits
+    rtone: u16,    // BCD, 3 bytes
+    ctone: u16,    // BCD, 3 bytes
     dtcs_polarity: u8,
-    dtcs: u16,        // BCD, 2 bytes
+    dtcs: u16, // BCD, 2 bytes
     dig_code: u8,
     duplex_offset: u32, // BCD, little-endian, 3 bytes
     urcall: [u8; 8],
@@ -163,9 +163,7 @@ impl RawMemory {
         let mut mem = if mode == "DV" {
             // D-STAR mode - create DVMemory and populate both base and DV fields
             let mut dv = DVMemory::new(number);
-            dv.dv_urcall = String::from_utf8_lossy(&self.urcall)
-                .trim_end()
-                .to_string();
+            dv.dv_urcall = String::from_utf8_lossy(&self.urcall).trim_end().to_string();
             dv.dv_rpt1call = String::from_utf8_lossy(&self.rpt1call)
                 .trim_end()
                 .to_string();
@@ -420,11 +418,7 @@ impl Radio for IC9700Radio {
             "Cross".to_string(),
         ];
 
-        features.valid_duplexes = vec![
-            "".to_string(),
-            "+".to_string(),
-            "-".to_string(),
-        ];
+        features.valid_duplexes = vec!["".to_string(), "+".to_string(), "-".to_string()];
 
         // Set valid bands based on band number
         if let Some(band_num) = self.band {
@@ -466,10 +460,7 @@ impl IC9700Radio {
         let bank = self.band.unwrap_or(1);
 
         // Read memory via CI-V protocol
-        let data = self
-            .protocol
-            .read_memory(port, bank, number as u16)
-            .await?;
+        let data = self.protocol.read_memory(port, bank, number as u16).await?;
 
         // Check if empty
         if data.is_empty() {
@@ -550,11 +541,7 @@ impl IC9700Radio {
     ) -> RadioResult<()> {
         for (i, mem) in memories.iter().enumerate() {
             if let Some(callback) = &status_fn {
-                callback(
-                    i,
-                    memories.len(),
-                    &format!("Writing memory {}", mem.number),
-                );
+                callback(i, memories.len(), &format!("Writing memory {}", mem.number));
             }
 
             self.set_memory_to_port(port, mem).await?;

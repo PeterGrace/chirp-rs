@@ -214,7 +214,12 @@ impl CivProtocol {
         frame.set_data(data);
 
         frame
-            .send(port, self.controller_addr, self.model_code, self.expect_echo)
+            .send(
+                port,
+                self.controller_addr,
+                self.model_code,
+                self.expect_echo,
+            )
             .await?;
 
         CivFrame::receive(port).await

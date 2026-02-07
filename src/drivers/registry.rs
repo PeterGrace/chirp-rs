@@ -51,12 +51,7 @@ pub fn get_driver(vendor: &str, model: &str) -> Option<DriverInfo> {
 
 /// List all registered drivers
 pub fn list_drivers() -> Vec<DriverInfo> {
-    DRIVER_REGISTRY
-        .lock()
-        .unwrap()
-        .values()
-        .cloned()
-        .collect()
+    DRIVER_REGISTRY.lock().unwrap().values().cloned().collect()
 }
 
 /// List drivers grouped by vendor

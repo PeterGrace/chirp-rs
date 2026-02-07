@@ -1,7 +1,7 @@
 // Protocol helpers for block-based radio communication
 // Many radios transfer memory in fixed-size blocks
 
-use super::comm::{SerialPort, SerialError};
+use super::comm::{SerialError, SerialPort};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -238,10 +238,7 @@ pub async fn read_until(
 }
 
 /// Helper to read a specific response pattern
-pub async fn expect_response(
-    port: &mut SerialPort,
-    expected: &[u8],
-) -> Result<(), SerialError> {
+pub async fn expect_response(port: &mut SerialPort, expected: &[u8]) -> Result<(), SerialError> {
     let mut response = vec![0u8; expected.len()];
     port.read_exact(&mut response).await?;
 

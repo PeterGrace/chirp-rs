@@ -90,13 +90,19 @@ pub fn parse_u24_le(input: &[u8]) -> IResult<&[u8], u32> {
 /// Parse a u32 big-endian
 pub fn parse_u32_be(input: &[u8]) -> IResult<&[u8], u32> {
     let (input, bytes) = take(4usize)(input)?;
-    Ok((input, u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])))
+    Ok((
+        input,
+        u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+    ))
 }
 
 /// Parse a u32 little-endian
 pub fn parse_u32_le(input: &[u8]) -> IResult<&[u8], u32> {
     let (input, bytes) = take(4usize)(input)?;
-    Ok((input, u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])))
+    Ok((
+        input,
+        u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+    ))
 }
 
 /// Parse an array of elements using a parser

@@ -202,8 +202,19 @@ impl ChirpApp {
 
                     Command::perform(
                         async move {
-                            // TODO: Convert memories to memmap and save
-                            // For now, return success
+                            // Create a radio instance to encode memories
+                            let radio = crate::drivers::thd75::THD75Radio::new();
+                            let mmap = radio
+                                .encode_memories(&memories)
+                                .map_err(|e| format!("Failed to encode memories: {}", e))?;
+
+                            // Create metadata
+                            let metadata = Metadata::new("Kenwood", "TH-D75");
+
+                            // Save to file
+                            save_img(&path, &mmap, &metadata)
+                                .map_err(|e| format!("Failed to save file: {}", e))?;
+
                             Ok(())
                         },
                         Message::FileSaved,
@@ -226,8 +237,20 @@ impl ChirpApp {
 
                         if let Some(file) = file {
                             let path = file.path().to_path_buf();
-                            // TODO: Convert memories to memmap and save
-                            // For now, return success
+
+                            // Create a radio instance to encode memories
+                            let radio = crate::drivers::thd75::THD75Radio::new();
+                            let mmap = radio
+                                .encode_memories(&memories)
+                                .map_err(|e| format!("Failed to encode memories: {}", e))?;
+
+                            // Create metadata
+                            let metadata = Metadata::new("Kenwood", "TH-D75");
+
+                            // Save to file
+                            save_img(&path, &mmap, &metadata)
+                                .map_err(|e| format!("Failed to save file: {}", e))?;
+
                             Ok(())
                         } else {
                             Err("No file selected".to_string())

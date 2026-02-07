@@ -52,11 +52,7 @@ pub fn load_img(filename: impl AsRef<Path>) -> Result<(MemoryMap, Metadata)> {
 }
 
 /// Save a memory map and metadata to a .img file
-pub fn save_img(
-    filename: impl AsRef<Path>,
-    mmap: &MemoryMap,
-    metadata: &Metadata,
-) -> Result<()> {
+pub fn save_img(filename: impl AsRef<Path>, mmap: &MemoryMap, metadata: &Metadata) -> Result<()> {
     let mut file = File::create(filename)?;
 
     // Write the binary data

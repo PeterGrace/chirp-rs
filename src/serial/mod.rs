@@ -7,5 +7,5 @@ pub mod protocol;
 pub mod mock;
 
 pub use civ_protocol::{CivFrame, CivProtocol};
-pub use comm::{SerialPort, SerialConfig, SerialError};
+pub use comm::{SerialConfig, SerialError, SerialPort};
 pub use protocol::{BlockProtocol, ProgressCallback};

@@ -3,8 +3,8 @@
 
 use chirp_rs::gui::run_qt_app;
 use console_subscriber as tokio_console_subscriber;
-use tracing_subscriber::{EnvFilter, Registry, prelude::*};
 use tracing_subscriber::fmt::{format::FmtSpan, time::SystemTime};
+use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 
 fn main() -> std::process::ExitCode {
     // Initialize tracing with timestamps

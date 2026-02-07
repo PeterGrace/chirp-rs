@@ -139,8 +139,12 @@ impl RadioFeatures {
             .map(|(lo, hi)| {
                 format!(
                     "{}-{}MHz",
-                    Memory::format_freq(*lo).trim_end_matches('0').trim_end_matches('.'),
-                    Memory::format_freq(*hi).trim_end_matches('0').trim_end_matches('.')
+                    Memory::format_freq(*lo)
+                        .trim_end_matches('0')
+                        .trim_end_matches('.'),
+                    Memory::format_freq(*hi)
+                        .trim_end_matches('0')
+                        .trim_end_matches('.')
                 )
             })
             .collect::<Vec<_>>()

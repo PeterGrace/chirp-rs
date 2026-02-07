@@ -16,7 +16,10 @@ pub mod gui;
 // Re-export commonly used types
 pub use bitwise::{bcd_to_int, int_to_bcd, BcdArray};
 pub use core::{
-    constants::*, features::RadioFeatures, memory::{DVMemory, Memory}, power::PowerLevel,
+    constants::*,
+    features::RadioFeatures,
+    memory::{DVMemory, Memory},
+    power::PowerLevel,
     validation,
 };
 pub use drivers::{init_drivers, list_drivers, CloneModeRadio, Radio, RadioError};
