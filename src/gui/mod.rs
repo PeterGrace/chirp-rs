@@ -1,10 +1,6 @@
-// GUI module for CHIRP-RS using iced framework
-// Architecture: Elm-like MVU (Model-View-Update)
+// GUI module for CHIRP-RS using Qt
+// Provides a traditional desktop application experience
 
-pub mod app;
-pub mod dialogs;
-pub mod messages;
-pub mod radio_ops;
+pub mod qt_gui;
 
-pub use app::ChirpApp;
-pub use messages::Message;
+pub use qt_gui::run_qt_app;

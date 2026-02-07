@@ -1,0 +1,843 @@
+   Compiling chirp-rs v0.1.0 (/home/pgrace/repos/chirp-rs)
+warning: unused doc comment
+  --> src/drivers/registry.rs:35:1
+   |
+35 | /// Global driver registry
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+   |
+   = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+   = note: `#[warn(unused_doc_comments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `tokio::sync::Mutex`
+ --> src/serial/protocol.rs:6:5
+  |
+6 | use tokio::sync::Mutex;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Metadata` and `save_img`
+ --> src/gui/app.rs:6:32
+  |
+6 | use crate::formats::{load_img, save_img, Metadata};
+  |                                ^^^^^^^^  ^^^^^^^^
+
+warning: unnecessary parentheses around block return value
+   --> src/gui/dialogs.rs:105:13
+    |
+105 |             (current as f32 / total as f32)
+    |             ^                             ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+105 -             (current as f32 / total as f32)
+105 +             current as f32 / total as f32
+    |
+
+warning: unnecessary parentheses around block return value
+   --> src/gui/dialogs.rs:187:13
+    |
+187 |             (current as f32 / total as f32)
+    |             ^                             ^
+    |
+help: remove these parentheses
+    |
+187 -             (current as f32 / total as f32)
+187 +             current as f32 / total as f32
+    |
+
+warning: unused import: `RadioError`
+ --> src/gui/radio_ops.rs:4:57
+  |
+4 | use crate::drivers::{get_driver, CloneModeRadio, Radio, RadioError};
+  |                                                         ^^^^^^^^^^
+
+warning: use of deprecated function `base64::encode`: Use Engine::encode
+  --> src/formats/img.rs:70:35
+   |
+70 |     let metadata_base64 = base64::encode(metadata_json.as_bytes());
+   |                                   ^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `base64::decode`: Use Engine::decode
+  --> src/formats/img.rs:84:27
+   |
+84 |     let decoded = base64::decode(encoded).map_err(|e| ImgError::Base64Decode(e.to_string()))?;
+   |                           ^^^^^^
+
+warning: unused import: `std::io::Write`
+ --> src/serial/civ_protocol.rs:6:5
+  |
+6 | use std::io::Write;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `AsyncReadExt`
+ --> src/serial/comm.rs:7:17
+  |
+7 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                 ^^^^^^^^^^^^
+
+warning: unused import: `AsyncWriteExt`
+ --> src/serial/comm.rs:7:31
+  |
+7 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                               ^^^^^^^^^^^^^
+
+warning: unused import: `Radio`
+ --> src/gui/radio_ops.rs:4:50
+  |
+4 | use crate::drivers::{get_driver, CloneModeRadio, Radio, RadioError};
+  |                                                  ^^^^^
+
+warning: variable does not need to be mutable
+  --> src/drivers/traits.rs:79:13
+   |
+79 |         let mut mem = Memory::new_empty(number);
+   |             ----^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `path`
+   --> src/gui/app.rs:228:33
+    |
+228 | ...                   let path = file.path().to_path_buf();
+    |                           ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `mmap`
+   --> src/gui/app.rs:166:37
+    |
+166 | ...                   Ok((mmap, metadata)) => {
+    |                           ^^^^ help: if this is intentional, prefix it with an underscore: `_mmap`
+
+warning: unused variable: `metadata`
+   --> src/gui/app.rs:166:43
+    |
+166 | ...                   Ok((mmap, metadata)) => {
+    |                                 ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metadata`
+
+warning: unused variable: `path`
+   --> src/gui/app.rs:200:25
+    |
+200 |                     let path = path.clone();
+    |                         ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+
+warning: unused variable: `memories`
+   --> src/gui/app.rs:201:25
+    |
+201 |                     let memories = self.memories.clone();
+    |                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_memories`
+
+warning: unused variable: `memories`
+   --> src/gui/app.rs:218:21
+    |
+218 |                 let memories = self.memories.clone();
+    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_memories`
+
+warning: unused variable: `power_str`
+   --> src/gui/app.rs:467:49
+    |
+467 |             Message::MemoryPowerChanged(number, power_str) => {
+    |                                                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_power_str`
+
+warning: unused variable: `mem`
+   --> src/gui/app.rs:468:29
+    |
+468 |                 if let Some(mem) = self.memories.iter_mut().find(|m| m.number == number) {
+    |                             ^^^ help: if this is intentional, prefix it with an underscore: `_mem`
+
+warning: unused variable: `port`
+   --> src/gui/radio_ops.rs:166:5
+    |
+166 |     port: &mut SerialPort,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_port`
+
+warning: unused variable: `background`
+   --> src/gui/dialogs.rs:231:5
+    |
+231 |     background: impl Into<Element<'a, Message>>,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_background`
+
+warning: fields `bank`, `number`, `select_memory`, `filter`, `data_mode`, and `dig_sql` are never read
+  --> src/drivers/ic9700.rs:61:5
+   |
+60 | struct RawMemory {
+   |        --------- fields in this struct
+61 |     bank: u8,
+   |     ^^^^
+62 |     number: u16,      // BCD
+   |     ^^^^^^
+63 |     select_memory: u8,
+   |     ^^^^^^^^^^^^^
+...
+66 |     filter: u8,
+   |     ^^^^^^
+67 |     data_mode: u8,    // BCD
+   |     ^^^^^^^^^
+...
+70 |     dig_sql: u8,      // 4 bits
+   |     ^^^^^^^
+   |
+   = note: `RawMemory` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `GROUP_NAME_OFFSET` is never used
+  --> src/drivers/thd75.rs:24:7
+   |
+24 | const GROUP_NAME_OFFSET: usize = 1152;
+   |       ^^^^^^^^^^^^^^^^^
+
+warning: method `to_bits` is never used
+  --> src/drivers/thd75.rs:47:8
+   |
+37 | impl Duplex {
+   | ----------- method in this implementation
+...
+47 |     fn to_bits(self) -> u8 {
+   |        ^^^^^^^
+
+warning: constant `CROSS_MODES` is never used
+  --> src/drivers/thd75.rs:74:7
+   |
+74 | const CROSS_MODES: &[&str] = &["DTCS->", "Tone->DTCS", "DTCS->Tone", "Tone->Tone"];
+   |       ^^^^^^^^^^^
+
+warning: field `group` is never read
+  --> src/drivers/thd75.rs:84:5
+   |
+81 | struct MemoryFlags {
+   |        ----------- field in this struct
+...
+84 |     group: u8,
+   |     ^^^^^
+   |
+   = note: `MemoryFlags` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `to_bytes` is never used
+  --> src/drivers/thd75.rs:96:8
+   |
+87 | impl MemoryFlags {
+   | ---------------- method in this implementation
+...
+96 |     fn to_bytes(&self) -> [u8; 4] {
+   |        ^^^^^^^^
+
+warning: fields `narrow`, `split`, and `dig_squelch` are never read
+   --> src/drivers/thd75.rs:116:5
+    |
+111 | struct RawMemory {
+    |        --------- fields in this struct
+...
+116 |     narrow: bool,
+    |     ^^^^^^
+...
+121 |     split: bool,
+    |     ^^^^^
+...
+126 |     dig_squelch: u8,
+    |     ^^^^^^^^^^^
+    |
+    = note: `RawMemory` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `to_bytes` is never used
+   --> src/drivers/thd75.rs:214:8
+    |
+133 | impl RawMemory {
+    | -------------- method in this implementation
+...
+214 |     fn to_bytes(&self) -> Vec<u8> {
+    |        ^^^^^^^^
+
+warning: field `editing_cell` is never read
+  --> src/gui/app.rs:38:5
+   |
+15 | pub struct ChirpApp {
+   |            -------- field in this struct
+...
+38 |     editing_cell: Option<(u32, String)>, // (memory_number, field_name)
+   |     ^^^^^^^^^^^^
+
+warning: use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
+   --> src/drivers/traits.rs:107:5
+    |
+107 |     async fn sync_in(
+    |     ^^^^^
+    |
+    = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
+    = note: `#[warn(async_fn_in_trait)]` on by default
+help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
+    |
+107 ~     fn sync_in(
+108 |         &mut self,
+109 |         port: &mut SerialPort,
+110 |         status_fn: Option<StatusCallback>,
+111 ~     ) -> impl std::future::Future<Output = RadioResult<MemoryMap>> + Send;
+    |
+
+warning: use of `async fn` in public traits is discouraged as auto trait bounds cannot be specified
+   --> src/drivers/traits.rs:115:5
+    |
+115 |     async fn sync_out(
+    |     ^^^^^
+    |
+    = note: you can suppress this lint if you plan to use the trait only in your own code, or do not care about auto traits like `Send` on the `Future`
+help: you can alternatively desugar to a normal `fn` that returns `impl Future` and add any desired bounds such as `Send`, but these cannot be relaxed without a breaking API change
+    |
+115 ~     fn sync_out(
+116 |         &mut self,
+...
+119 |         status_fn: Option<StatusCallback>,
+120 ~     ) -> impl std::future::Future<Output = RadioResult<()>> + Send;
+    |
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> src/gui/app.rs:505:17
+    |
+505 |     pub fn view(&self) -> Element<Message> {
+    |                 ^^^^^     ^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                 |
+    |                 the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+    = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+    |
+505 |     pub fn view(&self) -> Element<'_, Message> {
+    |                                   +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> src/gui/app.rs:548:22
+    |
+548 |     fn view_menu_bar(&self) -> Element<Message> {
+    |                      ^^^^^     ^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                      |
+    |                      the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+548 |     fn view_menu_bar(&self) -> Element<'_, Message> {
+    |                                        +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> src/gui/app.rs:562:25
+    |
+562 |     fn view_memory_grid(&self) -> Element<Message> {
+    |                         ^^^^^     ^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                         |
+    |                         the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+562 |     fn view_memory_grid(&self) -> Element<'_, Message> {
+    |                                           +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> src/gui/app.rs:689:13
+    |
+689 |     fn view(&self) -> Element<Self::Message> {
+    |             ^^^^^     ^^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |             |
+    |             the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+689 |     fn view(&self) -> Element<'_, Self::Message> {
+    |                               +++
+
+warning: `chirp-rs` (lib) generated 38 warnings (run `cargo fix --lib -p chirp-rs` to apply 20 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.62s
+warning: the following packages contain code that will be rejected by a future version of Rust: ashpd v0.8.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running `target/debug/chirp-rs`
+[2m2026-02-07T18:11:11.845174Z[0m [32m INFO[0m main ThreadId(01) [2mchirp_rs[0m[2m:[0m [2msrc/main.rs[0m[2m:[0m[2m36:[0m Starting CHIRP-RS...
+[2m2026-02-07T18:11:11.845377Z[0m [32m INFO[0m main ThreadId(01) [2mchirp_rs[0m[2m:[0m [2msrc/main.rs[0m[2m:[0m[2m49:[0m Launching iced application...
+[2m2026-02-07T18:11:11.856100Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m90:[0m Found 3 drivers after init
+[2m2026-02-07T18:11:11.856115Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m92:[0m   - Kenwood TH-D75
+[2m2026-02-07T18:11:11.856120Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m92:[0m   - Kenwood TH-D74
+[2m2026-02-07T18:11:11.856123Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m92:[0m   - Icom IC-9700
+[2m2026-02-07T18:11:11.856204Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m105:[0m Vendors list: ["Kenwood", "Icom"]
+libEGL warning: egl: failed to create dri2 screen
+MESA: error: ZINK: failed to choose pdev
+libEGL warning: egl: failed to create dri2 screen
+[2m2026-02-07T18:11:13.696680Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m621:[0m view_download_dialog called
+[2m2026-02-07T18:11:13.696710Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m622:[0m   available_vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:13.696721Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m623:[0m   selected_vendor: None
+[2m2026-02-07T18:11:13.696728Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m633:[0m   models: []
+[2m2026-02-07T18:11:13.696746Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m34:[0m download_dialog called
+[2m2026-02-07T18:11:13.696753Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m35:[0m   vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:13.696760Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m36:[0m   models: []
+[2m2026-02-07T18:11:13.696766Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m37:[0m   ports: []
+[2m2026-02-07T18:11:13.696776Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m48:[0m vendors.is_empty() = false
+[2m2026-02-07T18:11:13.696781Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m50:[0m Adding vendor picker
+[2m2026-02-07T18:11:13.722944Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m621:[0m view_download_dialog called
+[2m2026-02-07T18:11:13.722963Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m622:[0m   available_vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:13.722971Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m623:[0m   selected_vendor: None
+[2m2026-02-07T18:11:13.722976Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m633:[0m   models: []
+[2m2026-02-07T18:11:13.722984Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m34:[0m download_dialog called
+[2m2026-02-07T18:11:13.722989Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m35:[0m   vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:13.722994Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m36:[0m   models: []
+[2m2026-02-07T18:11:13.722999Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m37:[0m   ports: ["/dev/ttyACM0", "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS10", "/dev/ttyS11", "/dev/ttyS12", "/dev/ttyS13", "/dev/ttyS14", "/dev/ttyS15", "/dev/ttyS16", "/dev/ttyS17", "/dev/ttyS18", "/dev/ttyS19", "/dev/ttyS2", "/dev/ttyS20", "/dev/ttyS21", "/dev/ttyS22", "/dev/ttyS23", "/dev/ttyS24", "/dev/ttyS25", "/dev/ttyS26", "/dev/ttyS27", "/dev/ttyS28", "/dev/ttyS29", "/dev/ttyS3", "/dev/ttyS30", "/dev/ttyS31", "/dev/ttyS4", "/dev/ttyS5", "/dev/ttyS6", "/dev/ttyS7", "/dev/ttyS8", "/dev/ttyS9"]
+[2m2026-02-07T18:11:13.723018Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m48:[0m vendors.is_empty() = false
+[2m2026-02-07T18:11:13.723024Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m50:[0m Adding vendor picker
+[2m2026-02-07T18:11:15.300565Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m621:[0m view_download_dialog called
+[2m2026-02-07T18:11:15.300593Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m622:[0m   available_vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:15.300601Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m623:[0m   selected_vendor: Some("Kenwood")
+[2m2026-02-07T18:11:15.300613Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m633:[0m   models: ["TH-D75", "TH-D74"]
+[2m2026-02-07T18:11:15.300624Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m34:[0m download_dialog called
+[2m2026-02-07T18:11:15.300629Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m35:[0m   vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:15.300634Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m36:[0m   models: ["TH-D75", "TH-D74"]
+[2m2026-02-07T18:11:15.300638Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m37:[0m   ports: ["/dev/ttyACM0", "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS10", "/dev/ttyS11", "/dev/ttyS12", "/dev/ttyS13", "/dev/ttyS14", "/dev/ttyS15", "/dev/ttyS16", "/dev/ttyS17", "/dev/ttyS18", "/dev/ttyS19", "/dev/ttyS2", "/dev/ttyS20", "/dev/ttyS21", "/dev/ttyS22", "/dev/ttyS23", "/dev/ttyS24", "/dev/ttyS25", "/dev/ttyS26", "/dev/ttyS27", "/dev/ttyS28", "/dev/ttyS29", "/dev/ttyS3", "/dev/ttyS30", "/dev/ttyS31", "/dev/ttyS4", "/dev/ttyS5", "/dev/ttyS6", "/dev/ttyS7", "/dev/ttyS8", "/dev/ttyS9"]
+[2m2026-02-07T18:11:15.300654Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m48:[0m vendors.is_empty() = false
+[2m2026-02-07T18:11:15.300658Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m50:[0m Adding vendor picker
+[2m2026-02-07T18:11:16.776739Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m621:[0m view_download_dialog called
+[2m2026-02-07T18:11:16.776777Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m622:[0m   available_vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:16.776787Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m623:[0m   selected_vendor: Some("Kenwood")
+[2m2026-02-07T18:11:16.776802Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m633:[0m   models: ["TH-D75", "TH-D74"]
+[2m2026-02-07T18:11:16.776817Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m34:[0m download_dialog called
+[2m2026-02-07T18:11:16.776825Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m35:[0m   vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:16.776830Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m36:[0m   models: ["TH-D75", "TH-D74"]
+[2m2026-02-07T18:11:16.776837Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m37:[0m   ports: ["/dev/ttyACM0", "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS10", "/dev/ttyS11", "/dev/ttyS12", "/dev/ttyS13", "/dev/ttyS14", "/dev/ttyS15", "/dev/ttyS16", "/dev/ttyS17", "/dev/ttyS18", "/dev/ttyS19", "/dev/ttyS2", "/dev/ttyS20", "/dev/ttyS21", "/dev/ttyS22", "/dev/ttyS23", "/dev/ttyS24", "/dev/ttyS25", "/dev/ttyS26", "/dev/ttyS27", "/dev/ttyS28", "/dev/ttyS29", "/dev/ttyS3", "/dev/ttyS30", "/dev/ttyS31", "/dev/ttyS4", "/dev/ttyS5", "/dev/ttyS6", "/dev/ttyS7", "/dev/ttyS8", "/dev/ttyS9"]
+[2m2026-02-07T18:11:16.776856Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m48:[0m vendors.is_empty() = false
+[2m2026-02-07T18:11:16.776861Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m50:[0m Adding vendor picker
+[2m2026-02-07T18:11:17.873666Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m621:[0m view_download_dialog called
+[2m2026-02-07T18:11:17.873700Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m622:[0m   available_vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:17.873712Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m623:[0m   selected_vendor: Some("Kenwood")
+[2m2026-02-07T18:11:17.873728Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m633:[0m   models: ["TH-D75", "TH-D74"]
+[2m2026-02-07T18:11:17.873741Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m34:[0m download_dialog called
+[2m2026-02-07T18:11:17.873748Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m35:[0m   vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:17.873755Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m36:[0m   models: ["TH-D75", "TH-D74"]
+[2m2026-02-07T18:11:17.873762Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m37:[0m   ports: ["/dev/ttyACM0", "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS10", "/dev/ttyS11", "/dev/ttyS12", "/dev/ttyS13", "/dev/ttyS14", "/dev/ttyS15", "/dev/ttyS16", "/dev/ttyS17", "/dev/ttyS18", "/dev/ttyS19", "/dev/ttyS2", "/dev/ttyS20", "/dev/ttyS21", "/dev/ttyS22", "/dev/ttyS23", "/dev/ttyS24", "/dev/ttyS25", "/dev/ttyS26", "/dev/ttyS27", "/dev/ttyS28", "/dev/ttyS29", "/dev/ttyS3", "/dev/ttyS30", "/dev/ttyS31", "/dev/ttyS4", "/dev/ttyS5", "/dev/ttyS6", "/dev/ttyS7", "/dev/ttyS8", "/dev/ttyS9"]
+[2m2026-02-07T18:11:17.873786Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m48:[0m vendors.is_empty() = false
+[2m2026-02-07T18:11:17.873792Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m50:[0m Adding vendor picker
+[2m2026-02-07T18:11:19.261602Z[0m [32m INFO[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m260:[0m USER CLICKED DOWNLOAD - Starting radio communication
+[2m2026-02-07T18:11:19.261710Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m621:[0m view_download_dialog called
+[2m2026-02-07T18:11:19.261719Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m622:[0m   available_vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:19.261730Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m623:[0m   selected_vendor: Some("Kenwood")
+[2m2026-02-07T18:11:19.261750Z[0m [34mDEBUG[0m main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m633:[0m   models: ["TH-D75", "TH-D74"]
+[2m2026-02-07T18:11:19.261765Z[0m [34mDEBUG[0m                 main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m34:[0m download_dialog called
+[2m2026-02-07T18:11:19.261757Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::gui::radio_ops[0m[2m:[0m [2msrc/gui/radio_ops.rs[0m[2m:[0m[2m22:[0m download_from_radio called
+[2m2026-02-07T18:11:19.261773Z[0m [34mDEBUG[0m                 main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m35:[0m   vendors: ["Kenwood", "Icom"]
+[2m2026-02-07T18:11:19.261780Z[0m [34mDEBUG[0m                 main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m36:[0m   models: ["TH-D75", "TH-D74"]
+[2m2026-02-07T18:11:19.261781Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::gui::radio_ops[0m[2m:[0m [2msrc/gui/radio_ops.rs[0m[2m:[0m[2m23:[0m   port: /dev/ttyACM0
+[2m2026-02-07T18:11:19.261789Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::gui::radio_ops[0m[2m:[0m [2msrc/gui/radio_ops.rs[0m[2m:[0m[2m24:[0m   vendor: Kenwood
+[2m2026-02-07T18:11:19.261797Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::gui::radio_ops[0m[2m:[0m [2msrc/gui/radio_ops.rs[0m[2m:[0m[2m25:[0m   model: TH-D75
+[2m2026-02-07T18:11:19.261787Z[0m [34mDEBUG[0m                 main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m37:[0m   ports: ["/dev/ttyACM0", "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS10", "/dev/ttyS11", "/dev/ttyS12", "/dev/ttyS13", "/dev/ttyS14", "/dev/ttyS15", "/dev/ttyS16", "/dev/ttyS17", "/dev/ttyS18", "/dev/ttyS19", "/dev/ttyS2", "/dev/ttyS20", "/dev/ttyS21", "/dev/ttyS22", "/dev/ttyS23", "/dev/ttyS24", "/dev/ttyS25", "/dev/ttyS26", "/dev/ttyS27", "/dev/ttyS28", "/dev/ttyS29", "/dev/ttyS3", "/dev/ttyS30", "/dev/ttyS31", "/dev/ttyS4", "/dev/ttyS5", "/dev/ttyS6", "/dev/ttyS7", "/dev/ttyS8", "/dev/ttyS9"]
+[2m2026-02-07T18:11:19.261809Z[0m [34mDEBUG[0m                 main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m48:[0m vendors.is_empty() = false
+[2m2026-02-07T18:11:19.261811Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::gui::radio_ops[0m[2m:[0m [2msrc/gui/radio_ops.rs[0m[2m:[0m[2m31:[0m Found driver: Kenwood TH-D75 (clone_mode: true)
+[2m2026-02-07T18:11:19.261816Z[0m [34mDEBUG[0m                 main ThreadId(01) [2mchirp_rs::gui::dialogs[0m[2m:[0m [2msrc/gui/dialogs.rs[0m[2m:[0m[2m50:[0m Adding vendor picker
+[2m2026-02-07T18:11:19.263054Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::gui::radio_ops[0m[2m:[0m [2msrc/gui/radio_ops.rs[0m[2m:[0m[2m43:[0m Setting DTR/RTS
+[2m2026-02-07T18:11:19.265021Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::gui::radio_ops[0m[2m:[0m [2msrc/gui/radio_ops.rs[0m[2m:[0m[2m50:[0m Opened serial port /dev/ttyACM0
+[2m2026-02-07T18:11:19.265050Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m517:[0m detect_baud - clearing input buffer
+[2m2026-02-07T18:11:19.265057Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(18) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m520:[0m detect_baud - sending wake-up CRs
+[2m2026-02-07T18:11:19.366281Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m532:[0m detect_baud - getting ID
+[2m2026-02-07T18:11:19.366300Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m487:[0m get_id - sending ID command
+[2m2026-02-07T18:11:19.366314Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m433:[0m command - sending: "ID"
+[2m2026-02-07T18:11:19.366900Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m457:[0m command - received: "ID TH-D75"
+[2m2026-02-07T18:11:19.366915Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m496:[0m get_id - got response on attempt 1: "ID TH-D75"
+[2m2026-02-07T18:11:19.366957Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m747:[0m Entering programming mode
+[2m2026-02-07T18:11:19.366966Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m433:[0m command - sending: "0M PROGRAM"
+[2m2026-02-07T18:11:20.017801Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m457:[0m command - received: "0M"
+[2m2026-02-07T18:11:20.017846Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m749:[0m Got response: "0M"
+[2m2026-02-07T18:11:20.017855Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m756:[0m Switching to 57600 baud immediately
+[2m2026-02-07T18:11:20.120329Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m765:[0m Clearing buffers at 57600 baud
+[2m2026-02-07T18:11:20.120374Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m771:[0m Starting block download (1955 blocks)
+[2m2026-02-07T18:11:20.120384Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 0/1955
+[2m2026-02-07T18:11:20.120401Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m316:[0m read_block 0 - sending command: [52, 00, 00, 00, 00]
+[2m2026-02-07T18:11:20.120474Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m330:[0m read_block 0 - waiting for header (5 bytes)
+[2m2026-02-07T18:11:20.120937Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m341:[0m read_block 0 - got header: [57, 00, 00, 00, 00]
+[2m2026-02-07T18:11:20.212130Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 100/1955
+[2m2026-02-07T18:11:20.306642Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 200/1955
+[2m2026-02-07T18:11:20.399710Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 300/1955
+[2m2026-02-07T18:11:20.495298Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 400/1955
+[2m2026-02-07T18:11:20.593537Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 500/1955
+[2m2026-02-07T18:11:20.686019Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 600/1955
+[2m2026-02-07T18:11:20.776731Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 700/1955
+[2m2026-02-07T18:11:20.868350Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 800/1955
+[2m2026-02-07T18:11:20.958676Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 900/1955
+[2m2026-02-07T18:11:21.049854Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1000/1955
+[2m2026-02-07T18:11:21.142101Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1100/1955
+[2m2026-02-07T18:11:21.232660Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1200/1955
+[2m2026-02-07T18:11:21.324492Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1300/1955
+[2m2026-02-07T18:11:21.419539Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1400/1955
+[2m2026-02-07T18:11:21.513657Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1500/1955
+[2m2026-02-07T18:11:21.609428Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1600/1955
+[2m2026-02-07T18:11:21.702915Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1700/1955
+[2m2026-02-07T18:11:21.796495Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1800/1955
+[2m2026-02-07T18:11:21.892118Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m774:[0m Reading block 1900/1955
+[2m2026-02-07T18:11:21.943014Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m788:[0m Block download complete
+[2m2026-02-07T18:11:21.943281Z[0m [32m INFO[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m268:[0m Decoding 1200 memory channels from downloaded data
+[2m2026-02-07T18:11:21.943297Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #0 from offset 0x4000 (decimal 16384)
+[2m2026-02-07T18:11:21.943307Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [70, 37, 9B, 08, C0, 27, 09, 00, 00, 00, 00, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943334Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #0: name="APRS" freq=144390000 offset=600000 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943347Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=144390000 offset=600000 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943365Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1 from offset 0x4028 (decimal 16424)
+[2m2026-02-07T18:11:21.943372Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [7E, 72, 86, 1A, 40, 4B, 4C, 00, 00, 10, 02, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943388Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1: name="Eaglevi CQCQCQ" freq=445018750 offset=5000000 mode="DV" duplex="-" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943398Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=445018750 offset=5000000 mode=1 duplex=- rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943407Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #2 from offset 0x4050 (decimal 16464)
+[2m2026-02-07T18:11:21.943414Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [38, 86, C0, 08, C0, 27, 09, 00, 00, 00, 82, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943428Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #2: name="MCRACES AA3E" freq=146835000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943437Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146835000 offset=600000 mode=0 duplex=- rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943447Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #3 from offset 0x4078 (decimal 16504)
+[2m2026-02-07T18:11:21.943454Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [F0, 7F, C3, 08, C0, 27, 09, 00, 00, 00, 41, 08, 09, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943468Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #3: name="PhilMont W3QV" freq=147030000 offset=600000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=91.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943477Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147030000 offset=600000 mode=0 duplex=+ rtone=8 ctone=9 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943487Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #4 from offset 0x40A0 (decimal 16544)
+[2m2026-02-07T18:11:21.943494Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, 17, BD, 08, C0, 27, 09, 00, 00, 10, 02, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943508Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #4: name="PhilDRA K3PDR" freq=146610000 offset=600000 mode="DV" duplex="-" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943518Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146610000 offset=600000 mode=1 duplex=- rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943535Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #5 from offset 0x40C8 (decimal 16584)
+[2m2026-02-07T18:11:21.943542Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [70, 29, C7, 08, C0, 27, 09, 00, 00, 00, 41, 08, 04, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943556Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #5: name="UPenn N3KZ" freq=147270000 offset=600000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=77 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943566Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147270000 offset=600000 mode=0 duplex=+ rtone=8 ctone=4 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943577Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #6 from offset 0x4100 (decimal 16640)
+[2m2026-02-07T18:11:21.943584Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [10, 3F, C6, 08, C0, 27, 09, 00, 00, 00, 81, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943598Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #6: name="PARC K3ZMC" freq=147210000 offset=600000 mode="FM" duplex="+" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943608Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147210000 offset=600000 mode=0 duplex=+ rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943618Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #7 from offset 0x4128 (decimal 16680)
+[2m2026-02-07T18:11:21.943624Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [20, F5, C3, 08, C0, 27, 09, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943638Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #7: name="Newtwn Sq WB3JOE" freq=147060000 offset=600000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943648Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147060000 offset=600000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943660Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #8 from offset 0x4150 (decimal 16720)
+[2m2026-02-07T18:11:21.943667Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [40, 61, BF, 08, C0, 27, 09, 00, 00, 00, 82, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943681Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #8: name="Schuylkill Towns" freq=146760000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943691Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146760000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943701Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #9 from offset 0x4178 (decimal 16760)
+[2m2026-02-07T18:11:21.943708Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [E0, C9, C5, 08, C0, 27, 09, 00, 00, 00, 81, 0F, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943722Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #9: name="Mt Penn - K2SEH" freq=147180000 offset=600000 mode="FM" duplex="+" tmode="TSQL" rtone=110.9 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943732Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147180000 offset=600000 mode=0 duplex=+ rtone=15 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943742Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #10 from offset 0x41A0 (decimal 16800)
+[2m2026-02-07T18:11:21.943749Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [30, AB, C1, 08, C0, 27, 09, 00, 00, 00, 82, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943763Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #10: name="Reading W3BN" freq=146910000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943773Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146910000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943783Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #11 from offset 0x41C8 (decimal 16840)
+[2m2026-02-07T18:11:21.943789Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [D0, 13, C8, 08, C0, 27, 09, 00, 00, 00, 81, 1B, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943803Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #11: name="Hatfield WA3RYQ" freq=147330000 offset=600000 mode="FM" duplex="+" tmode="TSQL" rtone=162.2 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943814Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147330000 offset=600000 mode=0 duplex=+ rtone=27 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943823Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #12 from offset 0x4200 (decimal 16896)
+[2m2026-02-07T18:11:21.943830Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [10, 82, A6, 08, C0, 27, 09, 00, 00, 00, 82, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943844Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #12: name="Paoli - WB3JOE" freq=145130000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943854Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=145130000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943864Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #13 from offset 0x4228 (decimal 16936)
+[2m2026-02-07T18:11:21.943871Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [30, 41, A9, 08, C0, 27, 09, 00, 00, 00, 82, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943885Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #13: name="Perkasie - W3AI" freq=145310000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943895Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=145310000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943905Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #14 from offset 0x4250 (decimal 16976)
+[2m2026-02-07T18:11:21.943913Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, 8F, A9, 08, C0, 27, 09, 00, 00, 00, 82, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943927Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #14: name="Hilltown - W3HJ" freq=145330000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943937Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=145330000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943947Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #15 from offset 0x4278 (decimal 17016)
+[2m2026-02-07T18:11:21.943953Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [60, 20, C2, 08, C0, 27, 09, 00, 00, 00, 42, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.943967Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #15: name="WChester W3PHL" freq=146940000 offset=600000 mode="FM" duplex="-" tmode="Tone" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.943980Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146940000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.943990Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #16 from offset 0x42A0 (decimal 17056)
+[2m2026-02-07T18:11:21.943997Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [78, 04, C6, 08, C0, 27, 09, 00, 00, 00, 81, 0C, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944013Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #16: name="Newtown Sq W3DI" freq=147195000 offset=600000 mode="FM" duplex="+" tmode="TSQL" rtone=100 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944023Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147195000 offset=600000 mode=0 duplex=+ rtone=12 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944038Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #17 from offset 0x42C8 (decimal 17096)
+[2m2026-02-07T18:11:21.944045Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [48, 8F, C5, 08, C0, 27, 09, 00, 00, 10, 01, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944060Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #17: name="Allentown W3OI" freq=147165000 offset=600000 mode="DV" duplex="+" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944071Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147165000 offset=600000 mode=1 duplex=+ rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944083Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #18 from offset 0x4300 (decimal 17152)
+[2m2026-02-07T18:11:21.944092Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [90, 42, BB, 08, 40, 42, 0F, 00, 00, 00, 01, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944109Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #18: name="Pocopson W3EOC" freq=146490000 offset=1000000 mode="FM" duplex="+" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944125Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146490000 offset=1000000 mode=0 duplex=+ rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944145Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #19 from offset 0x4328 (decimal 17192)
+[2m2026-02-07T18:11:21.944152Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [70, DD, A9, 08, C0, 27, 09, 00, 00, 00, 82, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944168Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #19: name="Doylestwn WA3EPA" freq=145350000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944180Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=145350000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944194Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #20 from offset 0x4350 (decimal 17232)
+[2m2026-02-07T18:11:21.944203Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [60, 20, C2, 08, C0, 27, 09, 00, 00, 00, 42, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944220Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #20: name="Media W3KG" freq=146940000 offset=600000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944231Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146940000 offset=600000 mode=0 duplex=- rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944243Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #21 from offset 0x4378 (decimal 17272)
+[2m2026-02-07T18:11:21.944253Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, 6A, C4, 08, C0, 27, 09, 00, 00, 00, 81, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944269Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #21: name="K3DN Bucks RACES" freq=147090000 offset=600000 mode="FM" duplex="+" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944281Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147090000 offset=600000 mode=0 duplex=+ rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944294Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #22 from offset 0x43A0 (decimal 17312)
+[2m2026-02-07T18:11:21.944303Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [60, 20, C2, 08, C0, 27, 09, 00, 00, 00, 42, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944320Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #22: name="Media W3AEC" freq=146940000 offset=600000 mode="FM" duplex="-" tmode="Tone" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944332Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146940000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944342Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #23 from offset 0x43C8 (decimal 17352)
+[2m2026-02-07T18:11:21.944349Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [00, 89, C8, 08, C0, 27, 09, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944364Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #23: name="Mrcy Darby W3JOE" freq=147360000 offset=600000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944375Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=147360000 offset=600000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944387Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #24 from offset 0x4400 (decimal 17408)
+[2m2026-02-07T18:11:21.944395Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [78, B1, BE, 08, C0, 27, 09, 00, 00, 00, 82, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944410Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #24: name="Meadowbrook K3UT" freq=146715000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944421Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146715000 offset=600000 mode=0 duplex=- rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944431Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #25 from offset 0x4428 (decimal 17448)
+[2m2026-02-07T18:11:21.944438Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [10, 64, AB, 08, C0, 27, 09, 00, 00, 00, 82, 0C, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944455Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #25: name="W3XP" freq=145450000 offset=600000 mode="FM" duplex="-" tmode="TSQL" rtone=100 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944465Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=145450000 offset=600000 mode=0 duplex=- rtone=12 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944551Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #26 from offset 0x4450 (decimal 17488)
+[2m2026-02-07T18:11:21.944557Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [18, 17, 98, 1A, 40, 4B, 4C, 00, 00, 00, 82, 0C, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944567Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #26: name="South Coventry T" freq=446175000 offset=5000000 mode="FM" duplex="-" tmode="TSQL" rtone=100 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944573Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=446175000 offset=5000000 mode=0 duplex=- rtone=12 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944579Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #27 from offset 0x4478 (decimal 17528)
+[2m2026-02-07T18:11:21.944583Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [88, 1A, C5, 1A, 40, 4B, 4C, 00, 00, 00, 82, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944592Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #27: name="AA3E" freq=449125000 offset=5000000 mode="FM" duplex="-" tmode="TSQL" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944600Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=449125000 offset=5000000 mode=0 duplex=- rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944606Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #28 from offset 0x44A0 (decimal 17568)
+[2m2026-02-07T18:11:21.944610Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, 40, 5F, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944619Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #28: name="WA3SSG" freq=442450000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944625Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=442450000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944631Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #29 from offset 0x44C8 (decimal 17608)
+[2m2026-02-07T18:11:21.944635Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [40, 55, 55, 1A, 40, 4B, 4C, 00, 00, 00, 81, 0C, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944645Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #29: name="Upper Uwchlan To" freq=441800000 offset=5000000 mode="FM" duplex="+" tmode="TSQL" rtone=100 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944652Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=441800000 offset=5000000 mode=0 duplex=+ rtone=12 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944658Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #30 from offset 0x4500 (decimal 17664)
+[2m2026-02-07T18:11:21.944662Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [C0, D9, 73, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944670Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #30: name="Schuylkill Towns" freq=443800000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944676Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=443800000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944683Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #31 from offset 0x4528 (decimal 17704)
+[2m2026-02-07T18:11:21.944687Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [A8, BB, CC, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 0C, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944696Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #31: name="K3CX" freq=449625000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=100 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944702Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=449625000 offset=5000000 mode=0 duplex=- rtone=8 ctone=12 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944708Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #32 from offset 0x4550 (decimal 17744)
+[2m2026-02-07T18:11:21.944712Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [B8, 3C, BE, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944721Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #32: name="N3CB" freq=448675000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944729Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=448675000 offset=5000000 mode=0 duplex=- rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944737Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #33 from offset 0x4578 (decimal 17784)
+[2m2026-02-07T18:11:21.944741Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [B8, D2, A5, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 12, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944750Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #33: name="Caln Township" freq=447075000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=123 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944756Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=447075000 offset=5000000 mode=0 duplex=- rtone=8 ctone=18 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944762Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #34 from offset 0x45A0 (decimal 17824)
+[2m2026-02-07T18:11:21.944766Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [20, 1E, 66, 1A, 40, 4B, 4C, 00, 00, 00, 81, 12, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944777Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #34: name="W3HJ" freq=442900000 offset=5000000 mode="FM" duplex="+" tmode="TSQL" rtone=123 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944783Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=442900000 offset=5000000 mode=0 duplex=+ rtone=18 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944789Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #35 from offset 0x45C8 (decimal 17864)
+[2m2026-02-07T18:11:21.944793Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [70, A5, 70, 1A, 40, 4B, 4C, 00, 00, 00, 81, 18, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944801Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #35: name="W3LR" freq=443590000 offset=5000000 mode="FM" duplex="+" tmode="TSQL" rtone=151.4 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944808Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=443590000 offset=5000000 mode=0 duplex=+ rtone=24 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944814Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #36 from offset 0x4600 (decimal 17920)
+[2m2026-02-07T18:11:21.944818Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [48, 6E, 9D, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 0C, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944827Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #36: name="W3EOC" freq=446525000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=100 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944833Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=446525000 offset=5000000 mode=0 duplex=- rtone=8 ctone=12 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944839Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #37 from offset 0x4628 (decimal 17960)
+[2m2026-02-07T18:11:21.944843Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [F8, AA, 9C, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 10, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944851Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #37: name="N3FYI" freq=446475000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=114.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944860Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=446475000 offset=5000000 mode=0 duplex=- rtone=8 ctone=16 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944866Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #38 from offset 0x4650 (decimal 18000)
+[2m2026-02-07T18:11:21.944870Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [BA, B9, 3A, 1A, 40, 4B, 4C, 00, 00, 10, 01, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944879Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #38: name="Fair Acres" freq=440056250 offset=5000000 mode="DV" duplex="+" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944885Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=440056250 offset=5000000 mode=1 duplex=+ rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944891Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #39 from offset 0x4678 (decimal 18040)
+[2m2026-02-07T18:11:21.944896Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [10, 33, 5C, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944904Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #39: name="W3DI" freq=442250000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944910Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=442250000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944916Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #40 from offset 0x46A0 (decimal 18080)
+[2m2026-02-07T18:11:21.944920Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [30, 9F, 57, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 0C, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944929Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #40: name="W3EOC" freq=441950000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=100 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944935Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=441950000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=12 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944941Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #41 from offset 0x46C8 (decimal 18120)
+[2m2026-02-07T18:11:21.944945Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [A0, 6D, 78, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 18, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944954Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #41: name="South Mtn" freq=444100000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=151.4 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944960Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=444100000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=24 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944966Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #42 from offset 0x4700 (decimal 18176)
+[2m2026-02-07T18:11:21.944970Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [E0, 45, 6F, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.944979Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #42: name="W3JPA" freq=443500000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.944985Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=443500000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.944993Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #43 from offset 0x4728 (decimal 18216)
+[2m2026-02-07T18:11:21.944997Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [C0, 3A, 4F, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945007Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #43: name="KC2LHJ" freq=441400000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945013Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=441400000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945020Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #44 from offset 0x4750 (decimal 18256)
+[2m2026-02-07T18:11:21.945024Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [F0, FB, 6C, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 0C, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945032Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #44: name="Scholl Woodlands" freq=443350000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=100 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945041Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=443350000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=12 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945047Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #45 from offset 0x4778 (decimal 18296)
+[2m2026-02-07T18:11:21.945051Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [E8, 8A, 86, 1A, 40, 4B, 4C, 00, 00, 10, 02, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945060Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #45: name="W3OI" freq=445025000 offset=5000000 mode="DV" duplex="-" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945066Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=445025000 offset=5000000 mode=1 duplex=- rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945073Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #46 from offset 0x47A0 (decimal 18336)
+[2m2026-02-07T18:11:21.945077Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [58, C3, BF, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945085Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #46: name="N3MFT" freq=448775000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945091Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=448775000 offset=5000000 mode=0 duplex=- rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945101Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #47 from offset 0x47C8 (decimal 18376)
+[2m2026-02-07T18:11:21.945108Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [18, 81, B0, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 1B, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945117Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #47: name="Leather Corner P" freq=447775000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=162.2 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945125Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=447775000 offset=5000000 mode=0 duplex=- rtone=8 ctone=27 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945131Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #48 from offset 0x4800 (decimal 18432)
+[2m2026-02-07T18:11:21.945137Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [A0, CE, 53, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 03, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945153Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #48: name="W3WAN" freq=441700000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=74.4 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945162Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=441700000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=3 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945170Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #49 from offset 0x4828 (decimal 18472)
+[2m2026-02-07T18:11:21.945175Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [F4, 8C, AF, 1A, 40, 4B, 4C, 00, 00, 10, 02, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945184Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #49: name="South Mtn" freq=447712500 offset=5000000 mode="DV" duplex="-" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945191Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=447712500 offset=5000000 mode=1 duplex=- rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945198Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #50 from offset 0x4850 (decimal 18512)
+[2m2026-02-07T18:11:21.945202Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [58, 8E, B3, 1A, 40, 4B, 4C, 00, 00, 00, 82, 13, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945211Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #50: name="KB3AJF" freq=447975000 offset=5000000 mode="FM" duplex="-" tmode="TSQL" rtone=127.3 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945219Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=447975000 offset=5000000 mode=0 duplex=- rtone=19 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945225Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #51 from offset 0x4878 (decimal 18552)
+[2m2026-02-07T18:11:21.945229Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [48, 42, CE, 1A, 40, 4B, 4C, 00, 00, 00, 82, 15, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945238Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #51: name="N3EXA" freq=449725000 offset=5000000 mode="FM" duplex="-" tmode="TSQL" rtone=136.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945244Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=449725000 offset=5000000 mode=0 duplex=- rtone=21 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945250Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #52 from offset 0x48A0 (decimal 18592)
+[2m2026-02-07T18:11:21.945254Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [42, ED, 88, 1A, 40, 4B, 4C, 00, 00, 10, 02, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945265Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #52: name="PhilDRA K3PDR" freq=445181250 offset=5000000 mode="DV" duplex="-" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945271Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=445181250 offset=5000000 mode=1 duplex=- rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945277Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #53 from offset 0x48C8 (decimal 18632)
+[2m2026-02-07T18:11:21.945281Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [E6, 88, 3A, 1A, 40, 4B, 4C, 00, 00, 10, 01, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945291Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #53: name="Delaware Co Mem" freq=440043750 offset=5000000 mode="DV" duplex="+" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945297Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=440043750 offset=5000000 mode=1 duplex=+ rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945304Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #54 from offset 0x4900 (decimal 18688)
+[2m2026-02-07T18:11:21.945310Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [30, 6A, 4B, 1A, 40, 4B, 4C, 00, 00, 00, 81, 08, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945320Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #54: name="Hospital" freq=441150000 offset=5000000 mode="FM" duplex="+" tmode="TSQL" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945326Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=441150000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945332Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #55 from offset 0x4928 (decimal 18728)
+[2m2026-02-07T18:11:21.945336Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, AA, 77, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945345Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #55: name="Mercy Fitzgerald" freq=444050000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945351Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=444050000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945357Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #56 from offset 0x4950 (decimal 18768)
+[2m2026-02-07T18:11:21.945362Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [00, 7D, 5E, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945370Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #56: name="Eagles Peak Camp" freq=442400000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945376Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=442400000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945382Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #57 from offset 0x4978 (decimal 18808)
+[2m2026-02-07T18:11:21.945387Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [B0, EE, 69, 1A, 40, 4B, 4C, 00, 00, 00, 81, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945395Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #57: name="K3UTI" freq=443150000 offset=5000000 mode="FM" duplex="+" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945401Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=443150000 offset=5000000 mode=0 duplex=+ rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945409Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #58 from offset 0x49A0 (decimal 18848)
+[2m2026-02-07T18:11:21.945413Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, 1D, CD, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 13, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945422Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #58: name="K3IHI" freq=449650000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=127.3 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945430Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=449650000 offset=5000000 mode=0 duplex=- rtone=8 ctone=19 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945436Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #59 from offset 0x49C8 (decimal 18888)
+[2m2026-02-07T18:11:21.945440Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [10, D2, 80, 1A, 40, 4B, 4C, 00, 00, 00, 81, 14, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945449Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #59: name="W3XP" freq=444650000 offset=5000000 mode="FM" duplex="+" tmode="TSQL" rtone=131.8 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945455Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=444650000 offset=5000000 mode=0 duplex=+ rtone=20 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945462Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #60 from offset 0x4A00 (decimal 18944)
+[2m2026-02-07T18:11:21.945467Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [F8, 7E, CD, 1A, 40, 4B, 4C, 00, 00, 00, 42, 08, 0A, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945477Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #60: name="WB3LGG" freq=449675000 offset=5000000 mode="FM" duplex="-" tmode="Tone" rtone=88.5 ctone=94.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945484Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=449675000 offset=5000000 mode=0 duplex=- rtone=8 ctone=10 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945490Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #61 from offset 0x4A28 (decimal 18984)
+[2m2026-02-07T18:11:21.945495Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [60, 95, 81, 1A, 40, 4B, 4C, 00, 00, 00, 41, 08, 14, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945503Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #61: name="KM3W" freq=444700000 offset=5000000 mode="FM" duplex="+" tmode="Tone" rtone=88.5 ctone=131.8 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945509Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=444700000 offset=5000000 mode=0 duplex=+ rtone=8 ctone=20 dtcs_code=0 tone_mode=1 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945517Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #62 from offset 0x4A50 (decimal 19024)
+[2m2026-02-07T18:11:21.945521Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [C0, 0E, 80, 1A, 40, 4B, 4C, 00, 00, 00, 81, 19, 08, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945532Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #62: name="Gaffney Hill" freq=444600000 offset=5000000 mode="FM" duplex="+" tmode="TSQL" rtone=156.7 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945539Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=444600000 offset=5000000 mode=0 duplex=+ rtone=25 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=1 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945549Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #101 from offset 0x50C8 (decimal 20680)
+[2m2026-02-07T18:11:21.945554Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 42, 4D, 33, 31, 30, 34, 00, 00, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945563Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #101: name="dmr bm3104" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945569Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945575Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #102 from offset 0x5100 (decimal 20736)
+[2m2026-02-07T18:11:21.945579Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 34, 30, 30, 30, 00, 00, 00, 00, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945588Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #102: name="dmr clear" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945595Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945612Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #103 from offset 0x5128 (decimal 20776)
+[2m2026-02-07T18:11:21.945617Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 33, 31, 34, 32, 20, 20, 20, 20, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945626Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #103: name="dmr PA" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945632Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945638Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #104 from offset 0x5150 (decimal 20816)
+[2m2026-02-07T18:11:21.945642Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 33, 31, 37, 33, 20, 20, 20, 20, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945651Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #104: name="dmr Mid-Atlantic" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945657Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945665Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #105 from offset 0x5178 (decimal 20856)
+[2m2026-02-07T18:11:21.945671Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 33, 31, 30, 30, 20, 20, 20, 20, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945681Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #105: name="dmr USA" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945687Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945694Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #106 from offset 0x51A0 (decimal 20896)
+[2m2026-02-07T18:11:21.945698Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 39, 33, 00, 00, 00, 00, 00, 00, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945708Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #106: name="dmr NOTAM" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945715Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945721Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #107 from offset 0x51C8 (decimal 20936)
+[2m2026-02-07T18:11:21.945725Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 39, 31, 00, 00, 00, 00, 00, 00, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945734Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #107: name="dmr Worldwide" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945740Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945748Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #108 from offset 0x5200 (decimal 20992)
+[2m2026-02-07T18:11:21.945752Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 33, 31, 36, 32, 31, 20, 20, 20, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945761Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #108: name="dmr HRCC" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945767Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945773Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #109 from offset 0x5228 (decimal 21032)
+[2m2026-02-07T18:11:21.945778Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [8C, BC, 1F, 1A, 8C, BC, 1F, 1A, 0A, 10, 04, 08, 08, 00, 00, 33, 31, 34, 31, 00, 00, 00, 00, 57, 33, 50, 4F, 47, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00]
+[2m2026-02-07T18:11:21.945787Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #109: name="dmr Oregon" freq=438287500 offset=438287500 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=50
+[2m2026-02-07T18:11:21.945793Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=438287500 offset=438287500 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=1 cross_mode=0 tuning_step=10
+[2m2026-02-07T18:11:21.945808Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #200 from offset 0x6150 (decimal 24912)
+[2m2026-02-07T18:11:21.945812Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [70, 37, 9B, 08, C0, 27, 09, 00, 00, 01, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.945822Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #200: name="APRS" freq=144390000 offset=600000 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945831Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=144390000 offset=600000 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945841Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #201 from offset 0x6178 (decimal 24952)
+[2m2026-02-07T18:11:21.945848Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [90, 49, A5, 08, C0, 27, 09, 00, 00, 01, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.945862Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #201: name="AA3E-10" freq=145050000 offset=600000 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945872Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=145050000 offset=600000 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.945882Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #202 from offset 0x61A0 (decimal 24992)
+[2m2026-02-07T18:11:21.945889Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, AD, A4, 08, C0, 27, 09, 00, 00, 01, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.945903Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #202: name="wa3wlh-10 egrnv" freq=145010000 offset=600000 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.945912Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=145010000 offset=600000 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946066Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1101 from offset 0xF778 (decimal 63352)
+[2m2026-02-07T18:11:21.946075Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [F0, 50, B0, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946096Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1101: name="WX  1" freq=162550000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946108Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=162550000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946119Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1102 from offset 0xF7A0 (decimal 63392)
+[2m2026-02-07T18:11:21.946129Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [00, 07, AE, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946151Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1102: name="WX  2" freq=162400000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946161Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=162400000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946171Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1103 from offset 0xF7C8 (decimal 63432)
+[2m2026-02-07T18:11:21.946177Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [F8, 2B, AF, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946191Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1103: name="WX  3" freq=162475000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946201Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=162475000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946214Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1104 from offset 0xF800 (decimal 63488)
+[2m2026-02-07T18:11:21.946221Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [A8, 68, AE, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946236Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1104: name="WX  4" freq=162425000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946246Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=162425000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946255Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1105 from offset 0xF828 (decimal 63528)
+[2m2026-02-07T18:11:21.946263Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, CA, AE, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946276Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1105: name="WX  5" freq=162450000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946286Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=162450000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946297Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1106 from offset 0xF850 (decimal 63568)
+[2m2026-02-07T18:11:21.946303Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [A0, 8D, AF, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946317Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1106: name="WX  6" freq=162500000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946327Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=162500000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946338Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1107 from offset 0xF878 (decimal 63608)
+[2m2026-02-07T18:11:21.946344Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [48, EF, AF, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946358Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1107: name="WX  7" freq=162525000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946371Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=162525000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946381Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1108 from offset 0xF8A0 (decimal 63648)
+[2m2026-02-07T18:11:21.946388Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [50, 95, A2, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946401Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1108: name="WX  8" freq=161650000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946411Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=161650000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946421Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1109 from offset 0xF8C8 (decimal 63688)
+[2m2026-02-07T18:11:21.946427Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [98, 7D, A4, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946441Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1109: name="WX  9" freq=161775000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946451Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=161775000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946461Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1110 from offset 0xF900 (decimal 63744)
+[2m2026-02-07T18:11:21.946468Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [F8, 60, BB, 09, 00, 00, 00, 00, 00, 01, 10, 08, 08, 00, 70, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, FF, 00]
+[2m2026-02-07T18:11:21.946481Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1110: name="WX 10" freq=163275000 offset=0 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="" tuning_step=5
+[2m2026-02-07T18:11:21.946491Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=163275000 offset=0 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946504Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1131 from offset 0xFC78 (decimal 64632)
+[2m2026-02-07T18:11:21.946511Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [C0, B7, BB, 08, C0, 27, 09, 00, 00, 01, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.946525Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1131: name="" freq=146520000 offset=600000 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="S" tuning_step=5
+[2m2026-02-07T18:11:21.946534Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=146520000 offset=600000 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946545Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1132 from offset 0xFCA0 (decimal 64672)
+[2m2026-02-07T18:11:21.946552Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [00, 44, 95, 08, C0, 27, 09, 00, 00, 11, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.946567Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1132: name="" freq=144000000 offset=600000 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="S" tuning_step=5
+[2m2026-02-07T18:11:21.946577Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=144000000 offset=600000 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=0
+[2m2026-02-07T18:11:21.946587Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1133 from offset 0xFCC8 (decimal 64712)
+[2m2026-02-07T18:11:21.946594Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [E0, 56, 52, 0D, 00, 6A, 18, 00, 77, 01, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.946610Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1133: name="" freq=223500000 offset=1600000 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="S" tuning_step=20
+[2m2026-02-07T18:11:21.946620Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=223500000 offset=1600000 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=7
+[2m2026-02-07T18:11:21.946630Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1134 from offset 0xFD00 (decimal 64768)
+[2m2026-02-07T18:11:21.946637Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [C0, B5, 4A, 0D, 00, 6A, 18, 00, 77, 11, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.946653Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1134: name="" freq=223000000 offset=1600000 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="S" tuning_step=20
+[2m2026-02-07T18:11:21.946663Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=223000000 offset=1600000 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=7
+[2m2026-02-07T18:11:21.946675Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1135 from offset 0xFD28 (decimal 64808)
+[2m2026-02-07T18:11:21.946682Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [80, 6B, 95, 1A, 40, 4B, 4C, 00, 88, 01, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.946696Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1135: name="" freq=446000000 offset=5000000 mode="FM" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="S" tuning_step=25
+[2m2026-02-07T18:11:21.946706Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=446000000 offset=5000000 mode=0 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=8
+[2m2026-02-07T18:11:21.946717Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m704:[0m Reading memory #1136 from offset 0xFD50 (decimal 64848)
+[2m2026-02-07T18:11:21.946723Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m146:[0m RawMemory bytes[0..40]: [00, DE, 39, 1A, 40, 4B, 4C, 00, 88, 11, 00, 08, 08, 00, 00, 43, 51, 43, 51, 43, 51, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 44, 49, 52, 45, 43, 54, 00, 00, 00]
+[2m2026-02-07T18:11:21.946740Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m606:[0m Decoded Memory #1136: name="Call VHF (FM)" freq=440000000 offset=5000000 mode="DV" duplex="" tmode="" rtone=88.5 ctone=88.5 dtcs=23 skip="S" tuning_step=25
+[2m2026-02-07T18:11:21.946752Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m623:[0m   Raw data: freq=440000000 offset=5000000 mode=1 duplex= rtone=8 ctone=8 dtcs_code=0 tone_mode=0 ctcss_mode=0 dtcs_mode=0 cross_mode=0 tuning_step=8
+[2m2026-02-07T18:11:21.946777Z[0m [32m INFO[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::drivers::thd75[0m[2m:[0m [2msrc/drivers/thd75.rs[0m[2m:[0m[2m279:[0m Found 91 non-empty memories out of 1200 channels
+[2m2026-02-07T18:11:21.946873Z[0m [34mDEBUG[0m tokio-runtime-worker ThreadId(03) [2mchirp_rs::gui::radio_ops[0m[2m:[0m [2msrc/gui/radio_ops.rs[0m[2m:[0m[2m61:[0m Downloaded 91 memories
+[2m2026-02-07T18:11:21.949524Z[0m [34mDEBUG[0m                 main ThreadId(01) [2mchirp_rs::gui::app[0m[2m:[0m [2msrc/gui/app.rs[0m[2m:[0m[2m322:[0m Download complete, got 91 memories
