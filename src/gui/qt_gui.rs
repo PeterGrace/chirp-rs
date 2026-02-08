@@ -275,7 +275,7 @@ cpp! {{
         QTreeWidgetItem* all_item = new QTreeWidgetItem(tree);
         all_item->setText(0, QString("All Memories (%1 memories)").arg(get_memory_count()));
         all_item->setData(0, Qt::UserRole, 255);  // Special value for "all"
-        all_item->setData(0, Qt::UserRole + 1, false);  // Not a bank filter
+        all_item->setData(0, Qt::UserRole + 1, true);  // Is a bank filter (shows all banks)
 
         // Create an item for each bank/group
         for (size_t bank_idx = 0; bank_idx < bank_count; ++bank_idx) {
@@ -872,8 +872,18 @@ cpp! {{
                     QString("Could not update memory:\n\n%1").arg(QString::fromUtf8(error)));
                 free_error_message(error);
             } else {
-                // Refresh the current band's table without resetting tree selection
-                refreshCurrentBandTable(table, tree);
+                // Refresh the entire view (tree + table) since bank may have changed
+                if (has_bank_organization()) {
+                    refreshTreeWithBanks(tree);
+                    // After tree refresh, select "All Memories" or preserve selection
+                    if (tree->topLevelItemCount() > 0) {
+                        tree->setCurrentItem(tree->topLevelItem(0));
+                    }
+                } else if (has_band_organization()) {
+                    refreshTreeWithBands(tree);
+                } else {
+                    refreshTable(table);
+                }
             }
         }
     }
@@ -1037,7 +1047,7 @@ fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
         urcall,
         rpt1,
         rpt2,
-        bank_str,
+        mem.bank.to_string(), // Store bank NUMBER (not name) for edit dialog
     ]
 }
 
@@ -2456,6 +2466,9 @@ pub unsafe extern "C" fn update_memory(
         .collect();
     state.cstrings[row] = cstrings;
 
+    // Rebuild bank organization since the memory may have moved to a different bank
+    state.bank_groups = build_bank_info(&state.memories);
+
     // Mark as modified
     state.is_modified = true;
 
@@ -2962,6 +2975,14 @@ pub fn run_qt_app() -> i32 {
                     if (has_band_organization() && tree->currentItem()) {
                         uint8_t band_num = tree->currentItem()->data(0, Qt::UserRole).toUInt();
                         intptr_t globalIndex = get_global_index_from_band_row(band_num, row);
+                        if (globalIndex >= 0) {
+                            globalRow = globalIndex;
+                        }
+                    }
+                    // If bank mode, convert bank+row to global index
+                    else if (has_bank_organization() && tree->currentItem()) {
+                        uint8_t bank_num = tree->currentItem()->data(0, Qt::UserRole).toUInt();
+                        intptr_t globalIndex = get_global_index_from_bank_row(bank_num, row);
                         if (globalIndex >= 0) {
                             globalRow = globalIndex;
                         }

@@ -843,7 +843,7 @@ impl THD75Radio {
 
         // Log the decoded memory for debugging
         tracing::debug!(
-            "Decoded Memory #{}: name=\"{}\" freq={} offset={} mode=\"{}\" duplex=\"{}\" tmode=\"{}\" rtone={} ctone={} dtcs={} skip=\"{}\" tuning_step={}",
+            "Decoded Memory #{}: name=\"{}\" freq={} offset={} mode=\"{}\" duplex=\"{}\" tmode=\"{}\" rtone={} ctone={} dtcs={} skip=\"{}\" tuning_step={} bank={}",
             mem.number,
             mem.name,
             mem.freq,
@@ -855,7 +855,8 @@ impl THD75Radio {
             mem.ctone,
             mem.dtcs,
             mem.skip,
-            mem.tuning_step
+            mem.tuning_step,
+            mem.bank
         );
 
         // Also log the raw memory data for comparison
@@ -934,6 +935,11 @@ impl Radio for THD75Radio {
             .get(flags_off, Some(4))
             .map_err(|e| RadioError::Radio(e.to_string()))?;
         let flags = MemoryFlags::from_bytes(flags_data);
+
+        tracing::debug!(
+            "Memory #{}: flags_off=0x{:04X} used={} lockout={} group={}",
+            number, flags_off, flags.used, flags.lockout, flags.group
+        );
 
         // Check if memory is used
         if flags.used == 0xFF {
