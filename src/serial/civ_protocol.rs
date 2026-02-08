@@ -209,9 +209,12 @@ impl CivProtocol {
         sub: Option<u8>,
         data: &[u8],
     ) -> RadioResult<CivFrame> {
+        tracing::debug!("CI-V send_command: cmd=0x{:02X}, sub={:?}, data_len={}", cmd, sub, data.len());
+
         let mut frame = CivFrame::new(cmd, sub);
         frame.set_data(data);
 
+        tracing::debug!("CI-V sending frame...");
         frame
             .send(
                 port,
@@ -221,7 +224,10 @@ impl CivProtocol {
             )
             .await?;
 
-        CivFrame::receive(port).await
+        tracing::debug!("CI-V waiting for response...");
+        let response = CivFrame::receive(port).await?;
+        tracing::debug!("CI-V response received");
+        Ok(response)
     }
 
     /// Read a memory from the radio
@@ -231,6 +237,8 @@ impl CivProtocol {
         bank: u8,
         channel: u16,
     ) -> RadioResult<Vec<u8>> {
+        tracing::debug!("CI-V read_memory: bank={}, channel={}", bank, channel);
+
         // Build data payload: bank (BCD) + channel (BCD, big-endian, 2 bytes)
         let channel_bcd = format!("{:04}", channel);
         let channel_bytes = u16::from_str_radix(&channel_bcd, 16)
@@ -238,9 +246,11 @@ impl CivProtocol {
             .to_be_bytes();
 
         let data = vec![bank, channel_bytes[0], channel_bytes[1]];
+        tracing::debug!("CI-V sending command 0x1A/0x00 with data: {:02X?}", data);
 
         // Command 0x1A, subcommand 0x00 = read memory
         let response = self.send_command(port, 0x1A, Some(0x00), &data).await?;
+        tracing::debug!("CI-V received response: {} bytes", response.data().len());
 
         // Check if memory is empty
         if response.is_empty_memory() {
@@ -251,6 +261,15 @@ impl CivProtocol {
         if response.data().is_empty() {
             return Err(RadioError::Radio("Radio reported error".to_string()));
         }
+
+        // Log hex dump of data received from radio
+        let data = response.data();
+        let hex_dump: String = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        tracing::debug!("read_memory received (hex): bank={}, ch={}, {} bytes: {}", bank, channel, data.len(), hex_dump);
 
         Ok(response.into_data())
     }
@@ -272,12 +291,35 @@ impl CivProtocol {
         let mut data = vec![bank, channel_bytes[0], channel_bytes[1]];
         data.extend_from_slice(memory_data);
 
+        // Log hex dump of data being sent
+        let hex_dump: String = data
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        tracing::debug!("write_memory data (hex): {}", hex_dump);
+
         // Command 0x1A, subcommand 0x00 = write memory
         let response = self.send_command(port, 0x1A, Some(0x00), &data).await?;
 
-        // Check for error
-        if response.data().is_empty() {
-            return Err(RadioError::Radio("Radio reported error".to_string()));
+        // Log response for debugging
+        let response_hex: String = response.data()
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        tracing::debug!("write_memory response: {} bytes: {}", response.data().len(), response_hex);
+
+        // Check for error (NAK = 0xFA) or success (ACK = 0xFB or empty)
+        // For write operations, the radio typically returns an ACK with just 0xFB
+        if !response.data().is_empty() && response.data()[0] == 0xFA {
+            tracing::error!(
+                "Radio rejected write_memory (NAK): bank={}, ch={}, data_len={}",
+                bank,
+                channel,
+                memory_data.len()
+            );
+            return Err(RadioError::Radio("Radio reported error (NAK)".to_string()));
         }
 
         Ok(())

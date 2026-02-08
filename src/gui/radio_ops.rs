@@ -37,19 +37,53 @@ pub async fn download_from_radio(
     );
 
     // Open serial port with appropriate settings
-    let serial_config = SerialConfig::new(9600)
-        .with_timeout(Duration::from_secs(10))
-        .with_hardware_flow();
+    // Kenwood radios need hardware flow control (RTS/CTS)
+    // Icom CI-V radios do NOT use flow control (RTS high = transmit)
+    // IC-9700 uses 19200 baud by default
+    let baud_rate = if vendor.to_lowercase() == "icom" && model.contains("9700") {
+        19200
+    } else {
+        9600
+    };
+    // Use shorter timeout for CI-V radios (Icom) since responses are fast
+    // Kenwood clone mode needs longer timeout for large block transfers
+    let timeout = if vendor.to_lowercase() == "icom" {
+        Duration::from_secs(2)  // CI-V responses should be quick
+    } else {
+        Duration::from_secs(10) // Clone mode block transfers can be slow
+    };
+    let mut serial_config = SerialConfig::new(baud_rate).with_timeout(timeout);
+
+    if vendor.to_lowercase() == "kenwood" {
+        serial_config = serial_config.with_hardware_flow();
+        tracing::debug!("Using hardware flow control for Kenwood radio");
+    } else {
+        tracing::debug!("No hardware flow control (vendor: {})", vendor);
+    }
 
     let mut port = SerialPort::open(&port_name, serial_config)
         .map_err(|e| format!("Failed to open port {}: {}", port_name, e))?;
 
-    // Set DTR and RTS - required for Kenwood radios to enter programming mode
-    tracing::debug!("Setting DTR/RTS");
-    port.set_dtr(true)
-        .map_err(|e| format!("Failed to set DTR: {}", e))?;
-    port.set_rts(false)
-        .map_err(|e| format!("Failed to set RTS: {}", e))?;
+    // Set DTR and RTS based on radio vendor
+    // Kenwood radios need DTR=true, RTS=false to enter programming mode
+    // Icom radios need DTR=false, RTS=false (RTS high = transmitting!)
+    if vendor.to_lowercase() == "kenwood" {
+        tracing::debug!("Setting DTR=true, RTS=false for Kenwood radio");
+        port.set_dtr(true)
+            .map_err(|e| format!("Failed to set DTR: {}", e))?;
+        port.set_rts(false)
+            .map_err(|e| format!("Failed to set RTS: {}", e))?;
+        tracing::debug!("Kenwood: DTR/RTS configured");
+    } else if vendor.to_lowercase() == "icom" {
+        tracing::debug!("Setting DTR=true, RTS=false for Icom radio");
+        // CRITICAL: Icom CI-V radios need DTR=true (for interface power/signaling)
+        // but RTS=false (RTS high = transmit)
+        port.set_dtr(true)
+            .map_err(|e| format!("Failed to set DTR: {}", e))?;
+        port.set_rts(false)
+            .map_err(|e| format!("Failed to set RTS: {}", e))?;
+        tracing::debug!("Icom: DTR=true, RTS=false confirmed");
+    }
 
     // Clear buffers
     port.clear_all()
@@ -108,33 +142,73 @@ async fn download_clone_mode(
 async fn download_command_mode(
     port: &mut SerialPort,
     _vendor: &str,
-    _model: &str,
+    model: &str,
     progress_fn: ProgressFn,
 ) -> RadioOpResult<(Vec<Memory>, crate::memmap::MemoryMap)> {
     use crate::drivers::ic9700::IC9700Radio;
 
-    // IC-9700 is multi-band - default to VHF (band 1) for now
-    // TODO: Let user select band or download all bands
-    let mut driver = IC9700Radio::new_band(1);
+    // Check if this is IC-9700 (multi-band radio)
+    let is_ic9700 = model.contains("9700");
+    let bands = if is_ic9700 {
+        vec![1, 2, 3] // VHF, UHF, 1.2GHz
+    } else {
+        vec![1] // Single band for other command-mode radios
+    };
 
-    // Create progress callback
-    let status_callback = Some(
-        Box::new(move |current: usize, total: usize, message: &str| {
-            progress_fn(current, total, message.to_string());
-        }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
-    );
+    let mut all_memories = Vec::new();
+    let total_bands = bands.len();
 
-    // Download memories
-    let memories = driver
-        .download_memories(port, status_callback)
-        .await
-        .map_err(|e| format!("Download failed: {}", e))?;
+    // Download all bands
+    for (band_idx, band_num) in bands.iter().enumerate() {
+        tracing::info!("Downloading Band {} of {}", band_idx + 1, total_bands);
+
+        let mut driver = IC9700Radio::new_band(*band_num);
+
+        // CRITICAL: Detect if interface echoes commands before any operations
+        driver
+            .detect_echo(port)
+            .await
+            .map_err(|e| format!("Failed to detect echo: {}", e))?;
+
+        // Create progress callback for this band
+        let band_name = match band_num {
+            1 => "VHF (144 MHz)",
+            2 => "UHF (430 MHz)",
+            3 => "1.2 GHz (1240 MHz)",
+            _ => "Unknown",
+        };
+
+        let progress_fn_clone = progress_fn.clone();
+        let status_callback = Some(
+            Box::new(move |current: usize, total: usize, message: &str| {
+                let band_message = format!("{} - {}", band_name, message);
+                progress_fn_clone(current, total, band_message);
+            }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
+        );
+
+        // Download memories for this band
+        let mut band_memories = driver
+            .download_memories(port, status_callback)
+            .await
+            .map_err(|e| format!("Download failed for band {}: {}", band_num, e))?;
+
+        // Tag memories with band number for multi-band radios
+        if is_ic9700 {
+            for mem in &mut band_memories {
+                mem.band = Some(*band_num);
+            }
+        }
+
+        all_memories.extend(band_memories);
+    }
+
+    tracing::info!("Downloaded total of {} memories from {} band(s)", all_memories.len(), total_bands);
 
     // IC-9700 doesn't use clone mode, so create empty mmap
     // Upload will use command-based protocol
     let mmap = crate::memmap::MemoryMap::new(vec![]);
 
-    Ok((memories, mmap))
+    Ok((all_memories, mmap))
 }
 
 /// Upload memories to a radio
@@ -158,12 +232,57 @@ pub async fn upload_to_radio(
         .ok_or_else(|| format!("Unknown radio: {} {}", vendor, model))?;
 
     // Open serial port
-    let serial_config = SerialConfig::new(9600)
-        .with_timeout(Duration::from_secs(10))
-        .with_hardware_flow();
+    // Kenwood radios need hardware flow control (RTS/CTS)
+    // Icom CI-V radios do NOT use flow control (RTS high = transmit)
+    // IC-9700 uses 19200 baud by default
+    let baud_rate = if vendor.to_lowercase() == "icom" && model.contains("9700") {
+        19200
+    } else {
+        9600
+    };
+    // Use shorter timeout for CI-V radios (Icom) since responses are fast
+    // Kenwood clone mode needs longer timeout for large block transfers
+    let timeout = if vendor.to_lowercase() == "icom" {
+        Duration::from_secs(2)  // CI-V responses should be quick
+    } else {
+        Duration::from_secs(10) // Clone mode block transfers can be slow
+    };
+    let mut serial_config = SerialConfig::new(baud_rate).with_timeout(timeout);
+
+    if vendor.to_lowercase() == "kenwood" {
+        serial_config = serial_config.with_hardware_flow();
+        tracing::debug!("Using hardware flow control for Kenwood radio");
+    } else {
+        tracing::debug!("No hardware flow control (vendor: {})", vendor);
+    }
 
     let mut port = SerialPort::open(&port_name, serial_config)
         .map_err(|e| format!("Failed to open port {}: {}", port_name, e))?;
+
+    // Set DTR and RTS based on radio vendor
+    // Kenwood radios need DTR=true, RTS=false to enter programming mode
+    // Icom radios need DTR=false, RTS=false (RTS high = transmitting!)
+    if vendor.to_lowercase() == "kenwood" {
+        tracing::debug!("Setting DTR=true, RTS=false for Kenwood radio");
+        port.set_dtr(true)
+            .map_err(|e| format!("Failed to set DTR: {}", e))?;
+        port.set_rts(false)
+            .map_err(|e| format!("Failed to set RTS: {}", e))?;
+        tracing::debug!("Kenwood: DTR/RTS configured");
+    } else if vendor.to_lowercase() == "icom" {
+        tracing::debug!("Setting DTR=true, RTS=false for Icom radio");
+        // CRITICAL: Icom CI-V radios need DTR=true (for interface power/signaling)
+        // but RTS=false (RTS high = transmit)
+        port.set_dtr(true)
+            .map_err(|e| format!("Failed to set DTR: {}", e))?;
+        port.set_rts(false)
+            .map_err(|e| format!("Failed to set RTS: {}", e))?;
+        tracing::debug!("Icom: DTR=true, RTS=false confirmed");
+    }
+
+    // Clear buffers
+    port.clear_all()
+        .map_err(|e| format!("Failed to clear buffers: {}", e))?;
 
     tracing::debug!("Opened serial port {}", port_name);
 
@@ -222,14 +341,8 @@ async fn upload_clone_mode(
 
     tracing::info!("Uploading to radio...");
 
-    // Set DTR and RTS - required for Kenwood radios to enter programming mode
-    tracing::debug!("Setting DTR/RTS for upload");
-    port.set_dtr(true)
-        .map_err(|e| format!("Failed to set DTR: {}", e))?;
-    port.set_rts(false)
-        .map_err(|e| format!("Failed to set RTS: {}", e))?;
-
-    // Clear buffers
+    // DTR/RTS already set in upload_to_radio() based on vendor
+    // Clear buffers before upload
     port.clear_all()
         .map_err(|e| format!("Failed to clear buffers: {}", e))?;
 
@@ -253,27 +366,80 @@ async fn upload_clone_mode(
 async fn upload_command_mode(
     port: &mut SerialPort,
     _vendor: &str,
-    _model: &str,
+    model: &str,
     memories: Vec<Memory>,
     progress_fn: ProgressFn,
 ) -> RadioOpResult<()> {
     use crate::drivers::ic9700::IC9700Radio;
+    use std::collections::HashMap;
 
-    // IC-9700 is multi-band - default to VHF (band 1)
-    let mut driver = IC9700Radio::new_band(1);
+    // Check if this is IC-9700 (multi-band radio)
+    let is_ic9700 = model.contains("9700");
 
-    // Create progress callback
-    let status_callback = Some(
-        Box::new(move |current: usize, total: usize, message: &str| {
-            progress_fn(current, total, message.to_string());
-        }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
+    // Filter to only modified memories for efficient upload
+    let modified_memories: Vec<&Memory> = memories
+        .iter()
+        .filter(|m| m.modified)
+        .collect();
+
+    tracing::info!(
+        "Upload: {} modified out of {} total memories",
+        modified_memories.len(),
+        memories.len()
     );
 
-    // Upload memories
-    driver
-        .upload_memories(port, &memories, status_callback)
-        .await
-        .map_err(|e| format!("Upload failed: {}", e))?;
+    if modified_memories.is_empty() {
+        tracing::info!("No modified memories to upload");
+        return Ok(());
+    }
+
+    // Group modified memories by band
+    let mut bands: HashMap<u8, Vec<Memory>> = HashMap::new();
+    for mem in modified_memories {
+        let band = mem.band.unwrap_or(1); // Default to band 1 if not specified
+        bands.entry(band).or_default().push(mem.clone());
+    }
+
+    // Upload each band separately
+    for (band_num, band_mems) in bands {
+        tracing::info!("Uploading Band {} ({} memories)", band_num, band_mems.len());
+
+        let mut driver = IC9700Radio::new_band(band_num);
+
+        // CRITICAL: Detect if interface echoes commands before any operations
+        driver
+            .detect_echo(port)
+            .await
+            .map_err(|e| format!("Failed to detect echo: {}", e))?;
+
+        // Create progress callback for this band
+        let band_name = if is_ic9700 {
+            match band_num {
+                1 => "VHF (144 MHz)",
+                2 => "UHF (430 MHz)",
+                3 => "1.2 GHz (1240 MHz)",
+                _ => "Unknown",
+            }
+        } else {
+            "Band"
+        };
+
+        let progress_fn_clone = progress_fn.clone();
+        let status_callback = Some(
+            Box::new(move |current: usize, total: usize, message: &str| {
+                let band_message = format!("{} - {}", band_name, message);
+                progress_fn_clone(current, total, band_message);
+            }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
+        );
+
+        // Upload memories for this band
+        driver
+            .upload_memories(port, &band_mems, status_callback)
+            .await
+            .map_err(|e| format!("Upload failed for band {}: {}", band_num, e))?;
+    }
+
+    tracing::info!("Upload complete for all bands");
 
     Ok(())
 }

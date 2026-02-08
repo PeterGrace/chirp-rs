@@ -93,7 +93,7 @@ pub struct SerialPort {
 impl SerialPort {
     /// Open a serial port with the given configuration
     pub fn open(port_name: &str, config: SerialConfig) -> Result<Self> {
-        let mut port = serialport::new(port_name, config.baud_rate)
+        let port = serialport::new(port_name, config.baud_rate)
             .data_bits(config.data_bits)
             .stop_bits(config.stop_bits)
             .parity(config.parity)
@@ -102,9 +102,9 @@ impl SerialPort {
             .open()
             .map_err(|e| SerialError::Port(e.to_string()))?;
 
-        // Try to set DTR and RTS (common for radios)
-        let _ = port.write_data_terminal_ready(true);
-        let _ = port.write_request_to_send(true);
+        // Note: DTR/RTS are set per-radio-type in radio_ops, not here
+        // Setting RTS=true by default causes issues with Icom CI-V radios
+        // which interpret RTS high as "transmitting"
 
         Ok(Self {
             port: Some(port),

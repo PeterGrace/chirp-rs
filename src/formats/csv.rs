@@ -199,6 +199,13 @@ fn parse_csv_line_flexible(
         mem.bank = bank.parse().unwrap_or(0);
     }
 
+    // Band (for multi-band radios like IC-9700)
+    if let Some(band_str) = get_field("Band") {
+        if !band_str.is_empty() {
+            mem.band = band_str.parse().ok();
+        }
+    }
+
     // Mark as non-empty if it has a valid frequency
     mem.empty = mem.freq == 0;
 

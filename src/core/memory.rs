@@ -120,6 +120,16 @@ pub struct Memory {
 
     /// Bank/Group number (0-9 for most radios)
     pub bank: u8,
+
+    /// Band number for multi-band radios (e.g., IC-9700: 1=VHF, 2=UHF, 3=1.2GHz)
+    /// None for single-band radios (TH-D75, etc.)
+    pub band: Option<u8>,
+
+    /// Whether this memory has been modified since download
+    /// Used for efficient uploads to command-based radios (IC-9700)
+    /// Transient state - not serialized to files
+    #[serde(skip)]
+    pub modified: bool,
 }
 
 impl Default for Memory {
@@ -158,6 +168,8 @@ impl Memory {
             dv_rpt2call: String::new(),
             dv_code: 0,
             bank: 0,
+            band: None,
+            modified: false,
         }
     }
 
@@ -288,7 +300,7 @@ impl Memory {
     }
 
     /// CSV header format
-    /// CSV header matching official CHIRP format (recent version - 21 columns)
+    /// CSV header matching official CHIRP format (22 columns including Band)
     pub const CSV_HEADER: &'static [&'static str] = &[
         "Location",
         "Name",
@@ -311,11 +323,12 @@ impl Memory {
         "RPT1CALL",
         "RPT2CALL",
         "DVCODE",
+        "Band", // Added for multi-band radios (e.g., IC-9700)
         // Note: "Bank" is NOT part of official CHIRP CSV format
         // We can still import it if present, but don't export it by default
     ];
 
-    /// Export to CSV row (matches official CHIRP format - 21 columns)
+    /// Export to CSV row (matches official CHIRP format - 22 columns including Band)
     pub fn to_csv(&self) -> Vec<String> {
         vec![
             format!("{}", self.number),
@@ -342,6 +355,7 @@ impl Memory {
             self.dv_rpt1call.clone(),
             self.dv_rpt2call.clone(),
             format!("{}", self.dv_code),
+            self.band.map(|b| b.to_string()).unwrap_or_default(),
             // Note: Bank is NOT exported (not part of official CHIRP CSV format)
         ]
     }

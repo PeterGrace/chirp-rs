@@ -19,9 +19,12 @@ cpp! {{
     #include <QtGui/QAction>
     #include <QtWidgets/QTableWidget>
     #include <QtWidgets/QTableWidgetItem>
+    #include <QtWidgets/QTreeWidget>
+    #include <QtWidgets/QTreeWidgetItem>
     #include <QtWidgets/QHeaderView>
     #include <QtWidgets/QVBoxLayout>
     #include <QtWidgets/QHBoxLayout>
+    #include <QtWidgets/QSplitter>
     #include <QtWidgets/QWidget>
     #include <QtWidgets/QMessageBox>
     #include <QtWidgets/QPushButton>
@@ -92,6 +95,55 @@ cpp! {{
         void copy_memory_at(size_t row);
         const char* paste_memory_at(size_t row);
         int has_clipboard_memory();
+
+        // Multi-band support
+        bool has_band_organization();
+        size_t get_band_count();
+        uint8_t get_band_number_by_index(size_t index);
+        const char* get_band_name(uint8_t band_num);
+        size_t get_band_memory_count(uint8_t band_num);
+        RowData get_memory_by_band_row(uint8_t band_num, size_t row);
+        intptr_t get_global_index_from_band_row(uint8_t band_num, size_t row);
+    }
+
+    // Forward declarations for helper refresh functions
+    void refreshTable(QTableWidget* table);
+    void refreshTreeWithBands(QTreeWidget* tree);
+    void refreshTableForBand(QTableWidget* table, uint8_t band_num);
+
+    // Helper function to refresh whichever view is currently visible
+    // Used by dialogs that don't have direct access to both widgets
+    void refreshCurrentView(QTableWidget* table, QTreeWidget* tree) {
+        if (has_band_organization()) {
+            // Multi-band radio: show tree and table in split view
+            tree->show();
+            table->show();
+            refreshTreeWithBands(tree);
+            // Refresh table with first band
+            if (tree->topLevelItemCount() > 0) {
+                QTreeWidgetItem* firstItem = tree->topLevelItem(0);
+                uint8_t band_num = firstItem->data(0, Qt::UserRole).toUInt();
+                refreshTableForBand(table, band_num);
+            }
+        } else {
+            // Single-band radio: hide tree, show table full width
+            tree->hide();
+            table->show();
+            refreshTable(table);
+        }
+    }
+
+    // Helper function to refresh just the current band's table
+    // Used after edit/paste/cut/clear operations to avoid resetting tree selection
+    void refreshCurrentBandTable(QTableWidget* table, QTreeWidget* tree) {
+        if (has_band_organization() && tree->currentItem()) {
+            // Multi-band mode: refresh table for currently selected band
+            uint8_t band_num = tree->currentItem()->data(0, Qt::UserRole).toUInt();
+            refreshTableForBand(table, band_num);
+        } else {
+            // Single-band mode: refresh entire table
+            refreshTable(table);
+        }
     }
 
     // Helper function to refresh table from Rust data
@@ -120,8 +172,70 @@ cpp! {{
         table->viewport()->update();
     }
 
+    // Helper function to refresh tree widget with band list (no children)
+    void refreshTreeWithBands(QTreeWidget* tree) {
+        tree->clear();
+
+        size_t band_count = get_band_count();
+        if (band_count == 0) {
+            // Fallback: no bands, shouldn't happen but handle gracefully
+            return;
+        }
+
+        // Create an item for each band (no children - memories shown in table)
+        for (size_t band_idx = 0; band_idx < band_count; ++band_idx) {
+            uint8_t band_num = get_band_number_by_index(band_idx);
+            const char* band_name_cstr = get_band_name(band_num);
+            QString band_name = QString::fromUtf8(band_name_cstr);
+            free_error_message(band_name_cstr);
+
+            size_t mem_count = get_band_memory_count(band_num);
+
+            // Create item with band name and memory count
+            QTreeWidgetItem* band_item = new QTreeWidgetItem(tree);
+            band_item->setText(0, QString("%1 (%2 memories)").arg(band_name).arg(mem_count));
+
+            // Store band number in item data for later retrieval
+            band_item->setData(0, Qt::UserRole, band_num);
+        }
+
+        // Select first band by default
+        if (tree->topLevelItemCount() > 0) {
+            tree->setCurrentItem(tree->topLevelItem(0));
+        }
+
+        // Force tree to update display
+        tree->viewport()->update();
+    }
+
+    // Helper function to refresh table with memories from a specific band
+    void refreshTableForBand(QTableWidget* table, uint8_t band_num) {
+        size_t mem_count = get_band_memory_count(band_num);
+        table->setRowCount(mem_count);
+
+        for (size_t row = 0; row < mem_count; ++row) {
+            RowData data = get_memory_by_band_row(band_num, row);
+            table->setItem(row, 0, new QTableWidgetItem(QString::fromUtf8(data.loc)));
+            table->setItem(row, 1, new QTableWidgetItem(QString::fromUtf8(data.freq)));
+            table->setItem(row, 2, new QTableWidgetItem(QString::fromUtf8(data.name)));
+            table->setItem(row, 3, new QTableWidgetItem(QString::fromUtf8(data.duplex)));
+            table->setItem(row, 4, new QTableWidgetItem(QString::fromUtf8(data.offset)));
+            table->setItem(row, 5, new QTableWidgetItem(QString::fromUtf8(data.mode)));
+            table->setItem(row, 6, new QTableWidgetItem(QString::fromUtf8(data.tmode)));
+            table->setItem(row, 7, new QTableWidgetItem(QString::fromUtf8(data.tone)));
+            table->setItem(row, 8, new QTableWidgetItem(QString::fromUtf8(data.power)));
+            table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
+            table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
+            table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
+            table->setItem(row, 12, new QTableWidgetItem(QString::fromUtf8(data.bank)));
+        }
+
+        // Force table to update display
+        table->viewport()->update();
+    }
+
     // Helper function to show download dialog
-    void showDownloadDialog(QWidget* parent, QTableWidget* table) {
+    void showDownloadDialog(QWidget* parent, QTableWidget* table, QTreeWidget* tree) {
         QDialog dialog(parent);
         dialog.setWindowTitle("Download from Radio");
         QFormLayout* layout = new QFormLayout(&dialog);
@@ -285,7 +399,7 @@ cpp! {{
                             .arg(errorMsg));
                         free_error_message(error);
                     } else {
-                        refreshTable(table);
+                        refreshCurrentView(table, tree);
                         QMessageBox::information(parent, "Download Complete",
                             QString("Successfully downloaded %1 memories from radio")
                                 .arg(get_memory_count()));
@@ -301,7 +415,7 @@ cpp! {{
     }
 
     // Helper function to show upload dialog
-    void showUploadDialog(QWidget* parent, QTableWidget* table) {
+    void showUploadDialog(QWidget* parent, QTableWidget* table, QTreeWidget* tree) {
         QDialog dialog(parent);
         dialog.setWindowTitle("Upload to Radio");
         QFormLayout* layout = new QFormLayout(&dialog);
@@ -478,7 +592,7 @@ cpp! {{
     }
 
     // Helper function to show edit dialog for a memory
-    void showEditDialog(QWidget* parent, QTableWidget* table, int row) {
+    void showEditDialog(QWidget* parent, QTableWidget* table, QTreeWidget* tree, int row) {
         // Get current row data
         RowData data = get_memory_row(row);
 
@@ -662,8 +776,8 @@ cpp! {{
                     QString("Could not update memory:\n\n%1").arg(QString::fromUtf8(error)));
                 free_error_message(error);
             } else {
-                // Refresh the table
-                refreshTable(table);
+                // Refresh the current band's table without resetting tree selection
+                refreshCurrentBandTable(table, tree);
             }
         }
     }
@@ -696,6 +810,10 @@ struct AppState {
     mmap: Option<crate::memmap::MemoryMap>,
     bank_names: Vec<String>,
     clipboard: Option<Memory>,
+    /// Band organization for multi-band radios (band_num -> memory indices)
+    band_groups: std::collections::HashMap<u8, Vec<usize>>,
+    /// Band display names (band_num -> display name like "VHF (144 MHz)")
+    band_display_names: std::collections::HashMap<u8, String>,
 }
 
 /// Global storage for memory data and C strings
@@ -877,7 +995,158 @@ pub extern "C" fn get_memory_row(row: usize) -> RowData {
     }
 }
 
+/// FFI: Check if memories have band organization (multi-band radio)
+#[no_mangle]
+pub extern "C" fn has_band_organization() -> bool {
+    let data = MEMORY_DATA.lock().unwrap();
+    data.as_ref()
+        .map(|state| !state.band_groups.is_empty())
+        .unwrap_or(false)
+}
+
+/// FFI: Get the number of bands
+#[no_mangle]
+pub extern "C" fn get_band_count() -> usize {
+    let data = MEMORY_DATA.lock().unwrap();
+    data.as_ref()
+        .map(|state| state.band_groups.len())
+        .unwrap_or(0)
+}
+
+/// FFI: Get band number by index (for iteration)
+/// Returns 0 if index is out of bounds
+#[no_mangle]
+pub extern "C" fn get_band_number_by_index(index: usize) -> u8 {
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        let mut bands: Vec<u8> = state.band_groups.keys().copied().collect();
+        bands.sort();
+        if index < bands.len() {
+            return bands[index];
+        }
+    }
+    0
+}
+
+/// FFI: Get band display name
+/// Caller must free the returned string with free_error_message()
+#[no_mangle]
+pub unsafe extern "C" fn get_band_name(band_num: u8) -> *const c_char {
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        if let Some(name) = state.band_display_names.get(&band_num) {
+            return CString::new(name.as_str())
+                .unwrap_or_else(|_| CString::new("").unwrap())
+                .into_raw();
+        }
+    }
+    CString::new("Unknown Band").unwrap().into_raw()
+}
+
+/// FFI: Get number of memories in a specific band
+#[no_mangle]
+pub extern "C" fn get_band_memory_count(band_num: u8) -> usize {
+    let data = MEMORY_DATA.lock().unwrap();
+    data.as_ref()
+        .and_then(|state| state.band_groups.get(&band_num))
+        .map(|indices| indices.len())
+        .unwrap_or(0)
+}
+
+/// FFI: Get memory data by band and row within that band
+#[no_mangle]
+pub extern "C" fn get_memory_by_band_row(band_num: u8, row: usize) -> RowData {
+    let data = MEMORY_DATA.lock().unwrap();
+
+    if let Some(state) = data.as_ref() {
+        if let Some(indices) = state.band_groups.get(&band_num) {
+            if row < indices.len() {
+                let mem_idx = indices[row];
+                if mem_idx < state.cstrings.len() {
+                    let row_cstrings = &state.cstrings[mem_idx];
+                    return RowData {
+                        loc: row_cstrings[0].as_ptr(),
+                        freq: row_cstrings[1].as_ptr(),
+                        name: row_cstrings[2].as_ptr(),
+                        duplex: row_cstrings[3].as_ptr(),
+                        offset: row_cstrings[4].as_ptr(),
+                        mode: row_cstrings[5].as_ptr(),
+                        tmode: row_cstrings[6].as_ptr(),
+                        tone: row_cstrings[7].as_ptr(),
+                        power: row_cstrings[8].as_ptr(),
+                        urcall: row_cstrings[9].as_ptr(),
+                        rpt1: row_cstrings[10].as_ptr(),
+                        rpt2: row_cstrings[11].as_ptr(),
+                        bank: row_cstrings[12].as_ptr(),
+                    };
+                }
+            }
+        }
+    }
+
+    // Return empty row if not found
+    static EMPTY: &[u8] = b"\0";
+    RowData {
+        loc: EMPTY.as_ptr() as *const c_char,
+        freq: EMPTY.as_ptr() as *const c_char,
+        name: EMPTY.as_ptr() as *const c_char,
+        duplex: EMPTY.as_ptr() as *const c_char,
+        offset: EMPTY.as_ptr() as *const c_char,
+        mode: EMPTY.as_ptr() as *const c_char,
+        tmode: EMPTY.as_ptr() as *const c_char,
+        tone: EMPTY.as_ptr() as *const c_char,
+        power: EMPTY.as_ptr() as *const c_char,
+        urcall: EMPTY.as_ptr() as *const c_char,
+        rpt1: EMPTY.as_ptr() as *const c_char,
+        rpt2: EMPTY.as_ptr() as *const c_char,
+        bank: EMPTY.as_ptr() as *const c_char,
+    }
+}
+
+/// FFI: Convert band+row to global memory index
+/// Returns the global index, or -1 if invalid
+#[no_mangle]
+pub extern "C" fn get_global_index_from_band_row(band_num: u8, row: usize) -> isize {
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        if let Some(indices) = state.band_groups.get(&band_num) {
+            if row < indices.len() {
+                return indices[row] as isize;
+            }
+        }
+    }
+    -1
+}
+
 /// Initialize memory data for display
+/// Build band groups and display names from memories
+fn build_band_info(memories: &[Memory]) -> (std::collections::HashMap<u8, Vec<usize>>, std::collections::HashMap<u8, String>) {
+    use std::collections::HashMap;
+
+    let mut band_groups: HashMap<u8, Vec<usize>> = HashMap::new();
+    let mut band_display_names: HashMap<u8, String> = HashMap::new();
+
+    // Group memories by band
+    for (idx, mem) in memories.iter().enumerate() {
+        if let Some(band_num) = mem.band {
+            band_groups.entry(band_num).or_default().push(idx);
+
+            // Set display name for this band if not already set
+            if !band_display_names.contains_key(&band_num) {
+                let display_name = match band_num {
+                    1 => "VHF (144 MHz)",
+                    2 => "UHF (430 MHz)",
+                    3 => "1.2 GHz (1240 MHz)",
+                    _ => "Unknown Band",
+                };
+                band_display_names.insert(band_num, display_name.to_string());
+            }
+        }
+    }
+
+    (band_groups, band_display_names)
+}
+
 fn set_memory_data(memories: Vec<Memory>, bank_names: Vec<String>) {
     // Convert all memories to CStrings and store them
     let mut all_cstrings = Vec::new();
@@ -891,6 +1160,9 @@ fn set_memory_data(memories: Vec<Memory>, bank_names: Vec<String>) {
         all_cstrings.push(cstrings);
     }
 
+    // Build band organization
+    let (band_groups, band_display_names) = build_band_info(&memories);
+
     let mut data = MEMORY_DATA.lock().unwrap();
     *data = Some(AppState {
         memories,
@@ -900,6 +1172,8 @@ fn set_memory_data(memories: Vec<Memory>, bank_names: Vec<String>) {
         mmap: None,
         bank_names,
         clipboard: None,
+        band_groups,
+        band_display_names,
     });
 }
 
@@ -914,6 +1188,8 @@ fn clear_memory_data() {
         mmap: None,
         bank_names: (0..10).map(|i| format!("Bank {}", i)).collect(),
         clipboard: None,
+        band_groups: std::collections::HashMap::new(),
+        band_display_names: std::collections::HashMap::new(),
     });
 }
 
@@ -925,19 +1201,22 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
     let c_str = CStr::from_ptr(path);
     let path_str = match c_str.to_str() {
         Ok(s) => s,
-        Err(_) => {
-            return CString::new("Invalid file path encoding")
-                .unwrap()
-                .into_raw()
+        Err(e) => {
+            let err_msg = format!("Invalid file path encoding: {}", e);
+            tracing::error!("load_file: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
         }
     };
     let path = PathBuf::from(path_str);
+
+    tracing::debug!("load_file called: {}", path.display());
 
     // Load the .img file
     let (mmap, metadata) = match load_img(&path) {
         Ok(data) => data,
         Err(e) => {
             let err_msg = format!("Failed to load file: {}", e);
+            tracing::error!("load_file: {}", err_msg);
             return CString::new(err_msg).unwrap().into_raw();
         }
     };
@@ -951,6 +1230,7 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         Some(info) => info,
         None => {
             let err_msg = format!("Unknown radio: {} {}", vendor, model);
+            tracing::error!("load_file: {}", err_msg);
             return CString::new(err_msg).unwrap().into_raw();
         }
     };
@@ -965,6 +1245,7 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
             Ok(mems) => mems,
             Err(e) => {
                 let err_msg = format!("Failed to parse memories: {}", e);
+                tracing::error!("load_file: {}", err_msg);
                 return CString::new(err_msg).unwrap().into_raw();
             }
         };
@@ -976,8 +1257,16 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         (mems, names)
     } else {
         let err_msg = format!("Unsupported radio model: {}", driver_info.model);
+        tracing::error!("load_file: {}", err_msg);
         return CString::new(err_msg).unwrap().into_raw();
     };
+
+    tracing::info!(
+        "File loaded successfully: {} memories from {} {}",
+        memories.len(),
+        vendor,
+        model
+    );
 
     // Convert to CStrings (include all memories, even empty ones)
     let mut all_cstrings = Vec::new();
@@ -990,6 +1279,9 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         all_cstrings.push(cstrings);
     }
 
+    // Build band organization
+    let (band_groups, band_display_names) = build_band_info(&memories);
+
     // Update global state
     let mut data = MEMORY_DATA.lock().unwrap();
     *data = Some(AppState {
@@ -1000,6 +1292,8 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         mmap: Some(mmap),
         bank_names,
         clipboard: None,
+        band_groups,
+        band_display_names,
     });
 
     // Return NULL to indicate success
@@ -1014,22 +1308,34 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
     let c_str = CStr::from_ptr(path);
     let path_str = match c_str.to_str() {
         Ok(s) => s,
-        Err(_) => {
-            return CString::new("Invalid file path encoding")
-                .unwrap()
-                .into_raw()
+        Err(e) => {
+            let err_msg = format!("Invalid file path encoding: {}", e);
+            tracing::error!("save_file: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
         }
     };
     let path = PathBuf::from(path_str);
 
+    tracing::debug!("save_file called: {}", path.display());
+
     let mut data = MEMORY_DATA.lock().unwrap();
     let state = match data.as_mut() {
         Some(s) => s,
-        None => return CString::new("No data to save").unwrap().into_raw(),
+        None => {
+            let err_msg = "No data to save";
+            tracing::error!("save_file: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
+        }
     };
 
-    // For now, we only support TH-D75
-    // TODO: Detect radio type from current_file or add a way to track it
+    // Check if this is a multi-band radio (IC-9700)
+    let has_bands = !state.band_groups.is_empty();
+    if has_bands {
+        let err_msg = "Saving .img files is not supported for multi-band radios like IC-9700. Use CSV export instead or upload directly to radio.";
+        tracing::error!("save_file: {}", err_msg);
+        return CString::new(err_msg).unwrap().into_raw();
+    }
+
     use crate::drivers::thd75::THD75Radio;
     use crate::drivers::{CloneModeRadio, Radio};
     use crate::formats::{save_img, Metadata};
@@ -1038,20 +1344,19 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
     let base_mmap = match &state.mmap {
         Some(m) => m.clone(),
         None => {
-            return CString::new(
-                "No memory map available. Please load from file or download from radio first.",
-            )
-            .unwrap()
-            .into_raw()
+            let err_msg =
+                "No memory map available. Please load from file or download from radio first.";
+            tracing::error!("save_file: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
         }
     };
 
     // Create radio and load the base mmap
     let mut radio = THD75Radio::new();
     if let Err(e) = radio.process_mmap(&base_mmap) {
-        return CString::new(format!("Failed to process memory map: {}", e))
-            .unwrap()
-            .into_raw();
+        let err_msg = format!("Failed to process memory map: {}", e);
+        tracing::error!("save_file: {}", err_msg);
+        return CString::new(err_msg).unwrap().into_raw();
     }
 
     // Update only non-empty memories
@@ -1059,9 +1364,9 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
     for mem in &state.memories {
         if !mem.empty {
             if let Err(e) = radio.set_memory(mem) {
-                return CString::new(format!("Failed to update memory #{}: {}", mem.number, e))
-                    .unwrap()
-                    .into_raw();
+                let err_msg = format!("Failed to update memory #{}: {}", mem.number, e);
+                tracing::error!("save_file: {}", err_msg);
+                return CString::new(err_msg).unwrap().into_raw();
             }
         }
     }
@@ -1070,9 +1375,9 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
     let mmap = match radio.mmap.clone() {
         Some(m) => m,
         None => {
-            return CString::new("Memory map not available after update")
-                .unwrap()
-                .into_raw()
+            let err_msg = "Memory map not available after update";
+            tracing::error!("save_file: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
         }
     };
 
@@ -1081,10 +1386,12 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
 
     // Save to file
     if let Err(e) = save_img(&path, &mmap, &metadata) {
-        return CString::new(format!("Failed to save file: {}", e))
-            .unwrap()
-            .into_raw();
+        let err_msg = format!("Failed to save file: {}", e);
+        tracing::error!("save_file: {}", err_msg);
+        return CString::new(err_msg).unwrap().into_raw();
     }
+
+    tracing::info!("File saved successfully: {}", path.display());
 
     // Update state
     state.current_file = Some(path);
@@ -1102,27 +1409,35 @@ pub unsafe extern "C" fn export_to_csv(path: *const c_char) -> *const c_char {
     let c_str = CStr::from_ptr(path);
     let path_str = match c_str.to_str() {
         Ok(s) => s,
-        Err(_) => {
-            return CString::new("Invalid file path encoding")
-                .unwrap()
-                .into_raw()
+        Err(e) => {
+            let err_msg = format!("Invalid file path encoding: {}", e);
+            tracing::error!("export_to_csv: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
         }
     };
     let path = PathBuf::from(path_str);
 
+    tracing::debug!("export_to_csv called: {}", path.display());
+
     let data = MEMORY_DATA.lock().unwrap();
     let state = match data.as_ref() {
         Some(s) => s,
-        None => return CString::new("No data to export").unwrap().into_raw(),
+        None => {
+            let err_msg = "No data to export";
+            tracing::error!("export_to_csv: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
+        }
     };
 
     // Export all memories (including empty ones if desired, or filter them)
     use crate::formats::export_csv;
     if let Err(e) = export_csv(&path, &state.memories) {
-        return CString::new(format!("Failed to export CSV: {}", e))
-            .unwrap()
-            .into_raw();
+        let err_msg = format!("Failed to export CSV: {}", e);
+        tracing::error!("export_to_csv: {}", err_msg);
+        return CString::new(err_msg).unwrap().into_raw();
     }
+
+    tracing::info!("CSV exported successfully: {}", path.display());
 
     // Return NULL to indicate success
     std::ptr::null()
@@ -1136,22 +1451,24 @@ pub unsafe extern "C" fn import_from_csv(path: *const c_char) -> *const c_char {
     let c_str = CStr::from_ptr(path);
     let path_str = match c_str.to_str() {
         Ok(s) => s,
-        Err(_) => {
-            return CString::new("Invalid file path encoding")
-                .unwrap()
-                .into_raw()
+        Err(e) => {
+            let err_msg = format!("Invalid file path encoding: {}", e);
+            tracing::error!("import_from_csv: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
         }
     };
     let path = PathBuf::from(path_str);
+
+    tracing::debug!("import_from_csv called: {}", path.display());
 
     // Import memories from CSV
     use crate::formats::import_csv;
     let memories = match import_csv(&path) {
         Ok(mems) => mems,
         Err(e) => {
-            return CString::new(format!("Failed to import CSV: {}", e))
-                .unwrap()
-                .into_raw();
+            let err_msg = format!("Failed to import CSV: {}", e);
+            tracing::error!("import_from_csv: {}", err_msg);
+            return CString::new(err_msg).unwrap().into_raw();
         }
     };
 
@@ -1169,6 +1486,11 @@ pub unsafe extern "C" fn import_from_csv(path: *const c_char) -> *const c_char {
         all_cstrings.push(cstrings);
     }
 
+    // Build band organization
+    let (band_groups, band_display_names) = build_band_info(&memories);
+
+    tracing::info!("CSV imported successfully: {} memories", memories.len());
+
     // Update global state
     let mut data = MEMORY_DATA.lock().unwrap();
     *data = Some(AppState {
@@ -1179,6 +1501,8 @@ pub unsafe extern "C" fn import_from_csv(path: *const c_char) -> *const c_char {
         mmap: None,        // No memory map from CSV import
         bank_names,
         clipboard: None,
+        band_groups,
+        band_display_names,
     });
 
     // Return NULL to indicate success
@@ -1449,6 +1773,9 @@ pub unsafe extern "C" fn download_from_radio(
                 all_cstrings.push(cstrings);
             }
 
+            // Build band organization
+            let (band_groups, band_display_names) = build_band_info(&memories);
+
             // Update global state
             let mut data = MEMORY_DATA.lock().unwrap();
             *data = Some(AppState {
@@ -1459,6 +1786,8 @@ pub unsafe extern "C" fn download_from_radio(
                 mmap: Some(mmap), // Store mmap from radio download
                 bank_names,
                 clipboard: None,
+                band_groups,
+                band_display_names,
             });
 
             // Return NULL to indicate success
@@ -1608,6 +1937,9 @@ pub extern "C" fn get_download_result() -> *const c_char {
                 all_cstrings.push(cstrings);
             }
 
+            // Build band organization
+            let (band_groups, band_display_names) = build_band_info(&memories);
+
             // Update global state
             let mut data = MEMORY_DATA.lock().unwrap();
             *data = Some(AppState {
@@ -1618,6 +1950,8 @@ pub extern "C" fn get_download_result() -> *const c_char {
                 mmap: Some(mmap), // Store mmap from radio download
                 bank_names,
                 clipboard: None,
+                band_groups,
+                band_display_names,
             });
 
             // Return NULL to indicate success
@@ -1625,6 +1959,7 @@ pub extern "C" fn get_download_result() -> *const c_char {
         }
         DownloadState::Complete(Err(e)) => {
             let err_msg = format!("Download failed: {}", e);
+            tracing::error!("{}", err_msg); // Log GUI errors to console
             CString::new(err_msg).unwrap().into_raw()
         }
         _ => {
@@ -1787,6 +2122,7 @@ pub extern "C" fn get_upload_result() -> *const c_char {
         }
         UploadState::Complete(Err(e)) => {
             let err_msg = format!("Upload failed: {}", e);
+            tracing::error!("{}", err_msg); // Log GUI errors to console
             CString::new(err_msg).unwrap().into_raw()
         }
         _ => {
@@ -1847,6 +2183,7 @@ pub unsafe extern "C" fn update_memory(
     mem.dv_urcall = urcall_str;
     mem.dv_rpt1call = rpt1call_str;
     mem.dv_rpt2call = rpt2call_str;
+    mem.modified = true; // Mark memory as modified for efficient upload
 
     // Regenerate CStrings for this row
     let bank_names = &state.bank_names;
@@ -1891,6 +2228,7 @@ pub extern "C" fn delete_memory_at(row: usize) -> *const c_char {
     mem.dv_urcall = String::new();
     mem.dv_rpt1call = String::new();
     mem.dv_rpt2call = String::new();
+    mem.modified = true; // Mark as modified for efficient upload (will erase on radio)
 
     // Regenerate CStrings for this row
     let bank_names = &state.bank_names;
@@ -1936,9 +2274,15 @@ pub extern "C" fn paste_memory_at(row: usize) -> *const c_char {
         None => return CString::new("No memory in clipboard").unwrap().into_raw(),
     };
 
+    // Preserve the target memory's channel number and band
+    let target_number = state.memories[row].number;
+    let target_band = state.memories[row].band;
+
     // Update the memory at the row
     let mut new_mem = clipboard_mem;
-    new_mem.number = row as u32;
+    new_mem.number = target_number;  // Keep the target slot's channel number
+    new_mem.band = target_band;      // Keep the target slot's band assignment
+    new_mem.modified = true;         // Mark as modified for efficient upload
     state.memories[row] = new_mem.clone();
 
     // Regenerate CStrings for this row
@@ -2039,11 +2383,25 @@ pub fn run_qt_app() -> i32 {
             window->setWindowTitle("CHIRP-RS");
             window->resize(1200, 600);
 
-            // Create central widget with table FIRST (so menus can reference it)
+            // Create central widget with BOTH table and tree (so menus can reference them)
             QWidget* centralWidget = new QWidget(window);
             QVBoxLayout* layout = new QVBoxLayout(centralWidget);
 
-            QTableWidget* table = new QTableWidget(centralWidget);
+            // Create splitter for split view (tree on left, table on right)
+            QSplitter* splitter = new QSplitter(Qt::Horizontal, centralWidget);
+
+            // Create tree widget for band selection (left side)
+            QTreeWidget* tree = new QTreeWidget(splitter);
+            tree->setColumnCount(1);
+            tree->setHeaderLabel("Memory Bands");
+            tree->setAlternatingRowColors(true);
+            tree->setSelectionBehavior(QTreeWidget::SelectRows);
+            tree->setMaximumWidth(250);  // Limit tree width
+            tree->setMinimumWidth(150);
+            tree->hide();  // Initially hidden for single-band radios
+
+            // Create table widget for memory display (right side)
+            QTableWidget* table = new QTableWidget(splitter);
             table->setColumnCount(13);
             QStringList headers;
             headers << "Loc" << "Frequency" << "Name" << "Duplex" << "Offset"
@@ -2071,9 +2429,33 @@ pub fn run_qt_app() -> i32 {
             table->setColumnWidth(11, 100); // RPT2
             table->setColumnWidth(12, 50);  // Bank
 
-            layout->addWidget(table);
+            // Add splitter to layout
+            layout->addWidget(splitter);
             centralWidget->setLayout(layout);
             window->setCentralWidget(centralWidget);
+
+            // Connect tree selection to table update
+            QObject::connect(tree, &QTreeWidget::currentItemChanged,
+                [=](QTreeWidgetItem* current, QTreeWidgetItem* previous) {
+                    if (current) {
+                        uint8_t band_num = current->data(0, Qt::UserRole).toUInt();
+                        refreshTableForBand(table, band_num);
+                    }
+                });
+
+            // Unified refresh function that checks for band organization
+            auto refreshMemoryView = [=]() {
+                if (has_band_organization()) {
+                    // Multi-band radio: show tree and table in split view
+                    tree->show();
+                    refreshTreeWithBands(tree);
+                    // Table will be updated via tree selection signal
+                } else {
+                    // Single-band radio: hide tree, show full-width table
+                    tree->hide();
+                    refreshTable(table);
+                }
+            };
 
             // Create menu bar (after table, so menus can reference it)
             QMenuBar* menuBar = window->menuBar();
@@ -2103,7 +2485,7 @@ pub fn run_qt_app() -> i32 {
                             .arg(fileName).arg(errorMsg));
                         free_error_message(error);
                     } else {
-                        refreshTable(table);
+                        refreshMemoryView();
                         const char* filename = get_current_filename();
                         window->setWindowTitle(QString("CHIRP-RS - %1").arg(QString::fromUtf8(filename)));
                     }
@@ -2189,7 +2571,7 @@ pub fn run_qt_app() -> i32 {
                             .arg(fileName).arg(errorMsg));
                         free_error_message(error);
                     } else {
-                        refreshTable(table);
+                        refreshMemoryView();
                         window->setWindowTitle("CHIRP-RS - Imported from CSV");
                         QMessageBox::information(window, "Import Successful",
                             QString("Successfully imported %1 memories from CSV")
@@ -2223,10 +2605,10 @@ pub fn run_qt_app() -> i32 {
             // Radio menu
             QMenu* radioMenu = menuBar->addMenu("&Radio");
             radioMenu->addAction("&Download from Radio", [=]() {
-                showDownloadDialog(window, table);
+                showDownloadDialog(window, table, tree);
             });
             radioMenu->addAction("&Upload to Radio", [=]() {
-                showUploadDialog(window, table);
+                showUploadDialog(window, table, tree);
             });
 
             // Enable context menu on table
@@ -2239,6 +2621,17 @@ pub fn run_qt_app() -> i32 {
                     if (!item) return;
 
                     int row = item->row();
+
+                    // If multi-band mode, convert band+row to global index
+                    int globalRow = row;
+                    if (has_band_organization() && tree->currentItem()) {
+                        uint8_t band_num = tree->currentItem()->data(0, Qt::UserRole).toUInt();
+                        intptr_t globalIndex = get_global_index_from_band_row(band_num, row);
+                        if (globalIndex >= 0) {
+                            globalRow = globalIndex;
+                        }
+                    }
+
                     QMenu contextMenu;
 
                     // Cut, Copy, Paste, Clear operations
@@ -2253,43 +2646,53 @@ pub fn run_qt_app() -> i32 {
 
                     if (selectedAction == cutAction) {
                         // Copy then clear
-                        copy_memory_at(row);
-                        const char* error = delete_memory_at(row);
+                        copy_memory_at(globalRow);
+                        const char* error = delete_memory_at(globalRow);
                         if (error) {
                             QMessageBox::warning(window, "Error", QString::fromUtf8(error));
                             free_error_message(error);
                         } else {
-                            refreshTable(table);
+                            refreshCurrentBandTable(table, tree);
                         }
                     } else if (selectedAction == copyAction) {
-                        copy_memory_at(row);
+                        copy_memory_at(globalRow);
                     } else if (selectedAction == pasteAction) {
-                        const char* error = paste_memory_at(row);
+                        const char* error = paste_memory_at(globalRow);
                         if (error) {
                             QMessageBox::warning(window, "Error", QString::fromUtf8(error));
                             free_error_message(error);
                         } else {
-                            refreshTable(table);
+                            refreshCurrentBandTable(table, tree);
                         }
                     } else if (selectedAction == clearAction) {
-                        const char* error = delete_memory_at(row);
+                        const char* error = delete_memory_at(globalRow);
                         if (error) {
                             QMessageBox::warning(window, "Error", QString::fromUtf8(error));
                             free_error_message(error);
                         } else {
-                            refreshTable(table);
+                            refreshCurrentBandTable(table, tree);
                         }
                     }
                 });
 
             // Connect double-click event to edit dialog
+            // Connect table double-click to edit dialog
             QObject::connect(table, &QTableWidget::cellDoubleClicked,
                 [=](int row, int column) {
-                    showEditDialog(window, table, row);
+                    // If multi-band mode, convert band+row to global index
+                    int globalRow = row;
+                    if (has_band_organization() && tree->currentItem()) {
+                        uint8_t band_num = tree->currentItem()->data(0, Qt::UserRole).toUInt();
+                        intptr_t globalIndex = get_global_index_from_band_row(band_num, row);
+                        if (globalIndex >= 0) {
+                            globalRow = globalIndex;
+                        }
+                    }
+                    showEditDialog(window, table, tree, globalRow);
                 });
 
-            // Populate table with initial data
-            refreshTable(table);
+            // Populate view with initial data (table or tree based on band organization)
+            refreshMemoryView();
 
             // Show window
             window->show();

@@ -13,30 +13,37 @@ const MODEL_CODE: u8 = 0xA2;
 const CONTROLLER_ADDR: u8 = 0xE0;
 
 // IC-9700 supports these modes
+// Matches Python CHIRP _MODES array (29 entries, indices 0-28)
 const MODES: &[Option<&str>] = &[
-    Some("LSB"),
-    Some("USB"),
-    Some("AM"),
-    Some("CW"),
-    Some("RTTY"),
-    Some("FM"),
-    Some("CWR"),
-    Some("RTTY-R"),
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    Some("DV"),
-    None,
-    None,
-    None,
-    None,
-    Some("DD"),
+    Some("LSB"),   // 0
+    Some("USB"),   // 1
+    Some("AM"),    // 2
+    Some("CW"),    // 3
+    Some("RTTY"),  // 4
+    Some("FM"),    // 5
+    Some("CWR"),   // 6
+    Some("RTTY-R"), // 7
+    None, // 8
+    None, // 9
+    None, // 10
+    None, // 11
+    None, // 12
+    None, // 13
+    None, // 14
+    None, // 15
+    None, // 16
+    Some("DV"), // 17
+    None, // 18
+    None, // 19
+    None, // 20
+    None, // 21
+    Some("DD"), // 22
+    None, // 23
+    None, // 24
+    None, // 25
+    None, // 26
+    None, // 27
+    None, // 28
 ];
 
 // Cross-mode tone support
@@ -54,8 +61,29 @@ const BANDS: &[(u32, u32)] = &[
     (1240, 1300), // 1.2 GHz
 ];
 
-/// IC-9700 Memory Format
+/// IC-9700 Memory Format (67 bytes total)
 /// Reference: MEM_IC9700_FORMAT in icomciv.py lines 145-167
+///
+/// Byte layout:
+/// 0: bank (1 byte)
+/// 1-2: number BCD (2 bytes)
+/// 3: select_memory (1 byte)
+/// 4-8: freq BCD LE (5 bytes)
+/// 9: mode (1 byte)
+/// 10: filter (1 byte)
+/// 11: data_mode (1 byte)
+/// 12: duplex(low 4) | tmode(high 4) (1 byte)
+/// 13: dig_sql (1 byte)
+/// 14-16: rtone BCD (3 bytes)
+/// 17-19: ctone BCD (3 bytes)
+/// 20: dtcs_polarity (1 byte)
+/// 21-22: dtcs BCD (2 bytes)
+/// 23: dig_code (1 byte)
+/// 24-26: duplex_offset BCD LE (3 bytes)
+/// 27-34: urcall (8 bytes)
+/// 35-42: rpt1call (8 bytes)
+/// 43-50: rpt2call (8 bytes)
+/// 51-66: name (16 bytes)
 #[derive(Debug)]
 #[allow(dead_code)]
 struct RawMemory {
@@ -83,11 +111,11 @@ struct RawMemory {
 
 impl RawMemory {
     /// Parse IC-9700 memory from raw bytes
-    /// Memory format is 69 bytes total
+    /// Memory format is 67 bytes total
     fn from_bytes(data: &[u8]) -> RadioResult<Self> {
-        if data.len() < 69 {
+        if data.len() < 67 {
             return Err(RadioError::InvalidResponse(format!(
-                "Memory data too short: {} bytes (expected 69)",
+                "Memory data too short: {} bytes (expected 67)",
                 data.len()
             )));
         }
@@ -96,7 +124,8 @@ impl RawMemory {
         let number = bcd::bcd_to_int_be(&data[1..3])? as u16;
         let select_memory = data[3];
         let freq = bcd::bcd_to_int_le(&data[4..9])?;
-        let mode = data[9];
+        // Mode is BCD encoded (bbcd in Python format)
+        let mode = bcd::bcd_to_int_be(&data[9..10])? as u8;
         let filter = data[10];
         let data_mode = data[11];
 
@@ -156,10 +185,15 @@ impl RawMemory {
     /// Convert to Memory struct
     fn to_memory(&self, number: u32) -> RadioResult<Memory> {
         let mode_idx = self.mode as usize;
+        tracing::debug!("Parsing memory {}: mode byte = {}", number, self.mode);
         let mode = MODES
             .get(mode_idx)
             .and_then(|m| *m)
-            .ok_or_else(|| RadioError::InvalidResponse(format!("Invalid mode: {}", self.mode)))?;
+            .ok_or_else(|| {
+                let err = format!("Invalid mode: {} (index out of bounds or None)", self.mode);
+                tracing::error!("{}", err);
+                RadioError::InvalidResponse(err)
+            })?;
 
         let mut mem = if mode == "DV" {
             // D-STAR mode - create DVMemory and populate both base and DV fields
@@ -236,14 +270,10 @@ impl RawMemory {
 
     /// Convert from Memory struct
     fn from_memory(mem: &Memory, bank: u8) -> RadioResult<Vec<u8>> {
-        let mut data = Vec::with_capacity(69);
+        let mut data = Vec::with_capacity(64);
 
-        // Bank
-        data.push(bank);
-
-        // Number (BCD, 2 bytes)
-        let number_bcd = bcd::int_to_bcd_be(mem.number as u64, 2)?;
-        data.extend_from_slice(&number_bcd);
+        // NOTE: Bank and channel are sent in the CI-V command header,
+        // so we don't include them in the memory data itself
 
         // Select memory (0 for now)
         data.push(0);
@@ -259,8 +289,8 @@ impl RawMemory {
             .ok_or_else(|| RadioError::Unsupported(format!("Mode not supported: {}", mem.mode)))?;
         data.push(mode_idx as u8);
 
-        // Filter (0 for now)
-        data.push(0);
+        // Filter (1 = FIL1, which is default for most modes)
+        data.push(1);
 
         // Data mode (0 for now)
         data.push(0);
@@ -325,11 +355,32 @@ impl RawMemory {
         let offset_bcd = bcd::int_to_bcd_le(offset as u64, 3)?;
         data.extend_from_slice(&offset_bcd);
 
-        // D-STAR call signs (empty for regular memory)
-        // Note: For D-STAR memories, these would come from DVMemory but we only have Memory here
-        let urcall_padded = [b' '; 8];
-        let rpt1call_padded = [b' '; 8];
-        let rpt2call_padded = [b' '; 8];
+        // D-STAR call signs
+        // For non-DV memories, IC-9700 expects "CQCQCQ" as default
+        // For DV memories, these would come from DVMemory
+        let urcall_padded = if mem.dv_urcall.is_empty() {
+            *b"CQCQCQ  " // Default for non-DV
+        } else {
+            let mut buf = [b' '; 8];
+            buf[..mem.dv_urcall.len().min(8)].copy_from_slice(&mem.dv_urcall.as_bytes()[..mem.dv_urcall.len().min(8)]);
+            buf
+        };
+
+        let rpt1call_padded = if mem.dv_rpt1call.is_empty() {
+            [b' '; 8]
+        } else {
+            let mut buf = [b' '; 8];
+            buf[..mem.dv_rpt1call.len().min(8)].copy_from_slice(&mem.dv_rpt1call.as_bytes()[..mem.dv_rpt1call.len().min(8)]);
+            buf
+        };
+
+        let rpt2call_padded = if mem.dv_rpt2call.is_empty() {
+            [b' '; 8]
+        } else {
+            let mut buf = [b' '; 8];
+            buf[..mem.dv_rpt2call.len().min(8)].copy_from_slice(&mem.dv_rpt2call.as_bytes()[..mem.dv_rpt2call.len().min(8)]);
+            buf
+        };
 
         data.extend_from_slice(&urcall_padded);
         data.extend_from_slice(&rpt1call_padded);
@@ -452,6 +503,15 @@ impl Radio for IC9700Radio {
 }
 
 impl IC9700Radio {
+    /// Detect if the CI-V interface echoes commands
+    /// This MUST be called before any other radio operations
+    pub async fn detect_echo(&mut self, port: &mut SerialPort) -> RadioResult<bool> {
+        tracing::debug!("IC-9700: Detecting CI-V echo...");
+        let has_echo = self.protocol.detect_echo(port).await?;
+        tracing::debug!("IC-9700: Interface echo detected: {}", has_echo);
+        Ok(has_echo)
+    }
+
     /// Get a memory from the radio via serial port
     pub async fn get_memory_from_port(
         &mut self,
@@ -482,14 +542,31 @@ impl IC9700Radio {
     ) -> RadioResult<()> {
         let bank = self.band.unwrap_or(1);
 
+        tracing::debug!(
+            "set_memory_to_port: bank={}, ch={}, empty={}, freq={}, name='{}', mode='{}'",
+            bank,
+            memory.number,
+            memory.empty,
+            memory.freq,
+            memory.name,
+            memory.mode
+        );
+
         if memory.empty {
             // Erase memory
+            tracing::debug!("Erasing memory: bank={}, ch={}", bank, memory.number);
             self.protocol
                 .erase_memory(port, bank, memory.number as u16)
                 .await?;
         } else {
             // Write memory
             let data = RawMemory::from_memory(memory, bank)?;
+            tracing::debug!(
+                "Writing memory: bank={}, ch={}, data_len={}",
+                bank,
+                memory.number,
+                data.len()
+            );
             self.protocol
                 .write_memory(port, bank, memory.number as u16, &data)
                 .await?;
@@ -517,9 +594,15 @@ impl IC9700Radio {
                 );
             }
 
-            if let Some(mem) = self.get_memory_from_port(port, i).await? {
-                memories.push(mem);
-            }
+            // Get memory from port, or create empty placeholder if slot is empty
+            let mem = if let Some(mem) = self.get_memory_from_port(port, i).await? {
+                mem
+            } else {
+                // Create empty memory for this slot so users can paste into it
+                Memory::new_empty(i)
+            };
+
+            memories.push(mem);
         }
 
         if let Some(callback) = &status_fn {
@@ -534,15 +617,19 @@ impl IC9700Radio {
     }
 
     /// Upload memories to the radio
+    /// Note: Empty memories will be erased on the radio via erase_memory command
     pub async fn upload_memories(
         &mut self,
         port: &mut SerialPort,
         memories: &[Memory],
         status_fn: Option<StatusCallback>,
     ) -> RadioResult<()> {
+        tracing::debug!("Uploading {} memories to IC-9700", memories.len());
+
         for (i, mem) in memories.iter().enumerate() {
             if let Some(callback) = &status_fn {
-                callback(i, memories.len(), &format!("Writing memory {}", mem.number));
+                let action = if mem.empty { "Erasing" } else { "Writing" };
+                callback(i, memories.len(), &format!("{} memory {}", action, mem.number));
             }
 
             self.set_memory_to_port(port, mem).await?;
