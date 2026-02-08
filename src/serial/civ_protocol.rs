@@ -340,12 +340,26 @@ impl CivProtocol {
 
         let data = vec![bank, channel_bytes[0], channel_bytes[1], 0xFF];
 
-        // Command 0x1A, subcommand 0x00 = write memory
+        // Command 0x1A, subcommand 0x00 = write memory (erase with 0xFF)
         let response = self.send_command(port, 0x1A, Some(0x00), &data).await?;
 
-        // Check for error
-        if response.data().is_empty() {
-            return Err(RadioError::Radio("Radio reported error".to_string()));
+        // Log response for debugging
+        let response_hex: String = response.data()
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        tracing::debug!("erase_memory response: {} bytes: {}", response.data().len(), response_hex);
+
+        // Check for error (NAK = 0xFA) or success (ACK = 0xFB or empty)
+        // Same logic as write_memory
+        if !response.data().is_empty() && response.data()[0] == 0xFA {
+            tracing::error!(
+                "Radio rejected erase_memory (NAK): bank={}, ch={}",
+                bank,
+                channel
+            );
+            return Err(RadioError::Radio("Radio reported error (NAK)".to_string()));
         }
 
         Ok(())
