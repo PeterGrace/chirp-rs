@@ -32,7 +32,7 @@ impl DriverInfo {
     }
 }
 
-/// Global driver registry
+// Global driver registry
 lazy_static::lazy_static! {
     static ref DRIVER_REGISTRY: Mutex<HashMap<String, DriverInfo>> = Mutex::new(HashMap::new());
 }

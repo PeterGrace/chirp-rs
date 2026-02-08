@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn test_power_conversions() {
         assert_eq!(watts_to_dbm(1.0), 30.0);
-        assert_eq!(watts_to_dbm(5.0), 36.98970004336019);
+        assert_eq!(watts_to_dbm(5.0), 36.989_7);
         assert!((dbm_to_watts(30.0) - 1.0).abs() < 0.01);
         assert!((dbm_to_watts(37.0) - 5.0).abs() < 0.1);
     }

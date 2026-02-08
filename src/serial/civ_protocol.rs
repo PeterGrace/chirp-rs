@@ -3,7 +3,6 @@
 
 use crate::drivers::{RadioError, RadioResult};
 use crate::serial::SerialPort;
-use std::io::Write;
 
 /// CI-V frame structure: 0xFE 0xFE <dst> <src> <cmd> [sub] [data...] 0xFD
 pub struct CivFrame {

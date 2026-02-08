@@ -85,9 +85,9 @@ impl MockSerialPort {
         let mut buffer = self.read_buffer.lock().unwrap();
         let mut count = 0;
 
-        for i in 0..buf.len() {
+        for item in buf.iter_mut() {
             if let Some(byte) = buffer.pop_front() {
-                buf[i] = byte;
+                *item = byte;
                 count += 1;
             } else {
                 break;
@@ -113,8 +113,8 @@ impl MockSerialPort {
             return Err(SerialError::Timeout(self.config.timeout));
         }
 
-        for i in 0..buf.len() {
-            buf[i] = buffer.pop_front().unwrap();
+        for item in buf.iter_mut() {
+            *item = buffer.pop_front().unwrap();
         }
 
         Ok(())

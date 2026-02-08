@@ -169,7 +169,7 @@ fn print_memory(mem: &chirp_rs::core::Memory) {
     println!();
 }
 
-fn print_raw_data(radio: &THD75Radio, mmap: &MemoryMap, number: u32) -> anyhow::Result<()> {
+fn print_raw_data(_radio: &THD75Radio, mmap: &MemoryMap, number: u32) -> anyhow::Result<()> {
     // Calculate offset
     let group = (number / 3) as usize;
     let index = (number % 3) as usize;

@@ -76,7 +76,7 @@ pub trait Radio: Send {
 
     /// Delete a memory (mark as empty)
     fn delete_memory(&mut self, number: u32) -> RadioResult<()> {
-        let mut mem = Memory::new_empty(number);
+        let mem = Memory::new_empty(number);
         self.set_memory(&mem)
     }
 
@@ -98,6 +98,7 @@ pub trait Radio: Send {
 
 /// Trait for radios that support clone mode (full memory dump)
 /// Reference: chirp/chirp_common.py lines 1498-1641
+#[allow(async_fn_in_trait)]
 pub trait CloneModeRadio: Radio {
     /// Get the size of the radio's memory map in bytes
     fn get_memsize(&self) -> usize;

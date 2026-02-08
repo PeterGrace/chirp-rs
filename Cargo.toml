@@ -16,6 +16,10 @@ path = "src/bin/radio_dump.rs"
 name = "parse-dump"
 path = "src/bin/parse_dump.rs"
 
+[[bin]]
+name = "parse-img"
+path = "src/bin/parse_img.rs"
+
 [dependencies]
 anyhow = "1.0.101"
 base64 = "0.22.1"

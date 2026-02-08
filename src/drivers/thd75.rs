@@ -73,6 +73,7 @@ const TUNE_STEPS: &[f32] = &[
 ];
 
 /// Cross modes
+#[allow(dead_code)]
 const CROSS_MODES: &[&str] = &["DTCS->", "Tone->DTCS", "DTCS->Tone", "Tone->Tone"];
 
 /// TH-D75 modes
@@ -266,15 +267,15 @@ impl THD75Radio {
     }
 
     /// Read bank/group names from memory map
-    /// Returns vector of 10 bank names (16 bytes each, null-terminated)
+    /// Returns vector of 30 bank names (16 bytes each, null-terminated)
     pub fn get_bank_names(&self) -> RadioResult<Vec<String>> {
         let mmap = self
             .mmap
             .as_ref()
             .ok_or_else(|| RadioError::Radio("Memory map not loaded".to_string()))?;
 
-        let mut names = Vec::with_capacity(10);
-        for i in 0..10 {
+        let mut names = Vec::with_capacity(30);
+        for i in 0..30 {
             let offset = GROUP_NAME_OFFSET + (i * 16);
             let bytes = mmap
                 .get(offset, Some(16))
@@ -894,26 +895,27 @@ impl Radio for THD75Radio {
     }
 
     fn get_features(&self) -> RadioFeatures {
-        let mut features = RadioFeatures::default();
-        features.memory_bounds = (0, NUM_MEMORIES - 1);
-        features.valid_modes = THD75_MODES.iter().map(|s| s.to_string()).collect();
-        features.valid_tmodes = vec![
-            "".to_string(),
-            "Tone".to_string(),
-            "TSQL".to_string(),
-            "DTCS".to_string(),
-            "Cross".to_string(),
-        ];
-        features.valid_duplexes = Duplex::all().iter().map(|s| s.to_string()).collect();
-        features.valid_tuning_steps = TUNE_STEPS.to_vec();
-        features.valid_tones = TONES.to_vec();
-        features.valid_dtcs_codes = DTCS_CODES.to_vec();
-        features.valid_name_length = 16;
-        features.has_bank = true;
-        features.has_dtcs = true;
-        features.has_ctone = true;
-        features.has_cross = true;
-        features
+        RadioFeatures {
+            memory_bounds: (0, NUM_MEMORIES - 1),
+            valid_modes: THD75_MODES.iter().map(|s| s.to_string()).collect(),
+            valid_tmodes: vec![
+                "".to_string(),
+                "Tone".to_string(),
+                "TSQL".to_string(),
+                "DTCS".to_string(),
+                "Cross".to_string(),
+            ],
+            valid_duplexes: Duplex::all().iter().map(|s| s.to_string()).collect(),
+            valid_tuning_steps: TUNE_STEPS.to_vec(),
+            valid_tones: TONES.to_vec(),
+            valid_dtcs_codes: DTCS_CODES.to_vec(),
+            valid_name_length: 16,
+            has_bank: true,
+            has_dtcs: true,
+            has_ctone: true,
+            has_cross: true,
+            ..Default::default()
+        }
     }
 
     fn get_memory(&mut self, number: u32) -> RadioResult<Option<Memory>> {
@@ -1057,9 +1059,28 @@ impl CloneModeRadio for THD75Radio {
         tracing::debug!("Block download complete");
 
         // End programming mode
+        tracing::debug!("Sending exit command");
         port.write_all(b"E")
             .await
             .map_err(|e| RadioError::Serial(e.to_string()))?;
+
+        // Ensure command is sent before switching baud
+        port.flush().await.ok();
+
+        // Give radio time to process exit command
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        // Switch back to 9600 baud after exiting programming mode
+        // The radio returns to 9600 baud when exiting programming mode
+        tracing::debug!("Switching back to 9600 baud");
+        port.set_baud_rate(9600)
+            .map_err(|e| RadioError::Serial(format!("Failed to change baud rate: {}", e)))?;
+
+        // Longer pause for baud rate change and radio to fully exit programming mode
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        // Clear any stale data from the transition
+        port.clear_all().ok();
 
         let mmap = MemoryMap::new(data);
         self.mmap = Some(mmap.clone());
@@ -1080,11 +1101,22 @@ impl CloneModeRadio for THD75Radio {
             return Err(RadioError::NoResponse);
         }
 
-        // Read one byte (ACK)
-        let mut ack = [0u8; 1];
-        let _ = port.read(&mut ack).await;
+        // Radio is now in programming mode and expecting us to switch to high speed
+        // DO NOT read anything else - immediately switch baud rates
+        tracing::debug!("Switching to 57600 baud immediately");
+
+        port.set_baud_rate(57600)
+            .map_err(|e| RadioError::Serial(format!("Failed to change baud rate: {}", e)))?;
+
+        // Brief pause for both PC and radio to stabilize at new baud rate
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Clear buffers to start clean communication at new baud rate
+        tracing::debug!("Clearing buffers at 57600 baud");
+        port.clear_all().ok();
 
         let num_blocks = (MEMSIZE / BLOCK_SIZE) - 2; // Don't write last 2 blocks
+        tracing::debug!("Starting block upload ({} blocks)", num_blocks);
 
         for block in 0..num_blocks {
             let start = block * BLOCK_SIZE;
@@ -1105,9 +1137,28 @@ impl CloneModeRadio for THD75Radio {
         }
 
         // End programming mode
+        tracing::debug!("Sending exit command");
         port.write_all(b"E")
             .await
             .map_err(|e| RadioError::Serial(e.to_string()))?;
+
+        // Ensure command is sent before switching baud
+        port.flush().await.ok();
+
+        // Give radio time to process exit command
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        // Switch back to 9600 baud after exiting programming mode
+        // The radio returns to 9600 baud when exiting programming mode
+        tracing::debug!("Switching back to 9600 baud");
+        port.set_baud_rate(9600)
+            .map_err(|e| RadioError::Serial(format!("Failed to change baud rate: {}", e)))?;
+
+        // Longer pause for baud rate change and radio to fully exit programming mode
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        // Clear any stale data from the transition
+        port.clear_all().ok();
 
         Ok(())
     }

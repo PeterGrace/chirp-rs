@@ -3,7 +3,6 @@
 
 use super::comm::{SerialError, SerialPort};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// Progress callback type
 /// Arguments: (bytes_transferred, total_bytes, status_message)

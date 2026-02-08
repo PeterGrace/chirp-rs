@@ -3,6 +3,7 @@
 
 use super::metadata::Metadata;
 use crate::memmap::MemoryMap;
+use base64::{engine::general_purpose, Engine as _};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -63,7 +64,7 @@ pub fn save_img(filename: impl AsRef<Path>, mmap: &MemoryMap, metadata: &Metadat
 
     // Encode metadata as base64-encoded JSON
     let metadata_json = metadata.to_json()?;
-    let metadata_base64 = base64::encode(metadata_json.as_bytes());
+    let metadata_base64 = general_purpose::STANDARD.encode(metadata_json.as_bytes());
     file.write_all(metadata_base64.as_bytes())?;
 
     Ok(())
@@ -77,7 +78,9 @@ fn find_magic(data: &[u8]) -> Option<usize> {
 /// Decode base64-encoded JSON metadata
 fn decode_metadata(encoded: &[u8]) -> Result<Metadata> {
     // Decode from base64
-    let decoded = base64::decode(encoded).map_err(|e| ImgError::Base64Decode(e.to_string()))?;
+    let decoded = general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|e| ImgError::Base64Decode(e.to_string()))?;
 
     // Parse JSON
     let json_str =
@@ -103,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_save_load_img() -> Result<()> {
-        let mut tempfile = NamedTempFile::new().unwrap();
+        let tempfile = NamedTempFile::new().unwrap();
         let path = tempfile.path().to_path_buf();
 
         // Create test data
@@ -155,7 +158,7 @@ mod tests {
 
         // Write base64-encoded JSON metadata
         let metadata_json = r#"{"vendor":"Icom","model":"IC-9700","chirp_version":"0.1.0"}"#;
-        let metadata_base64 = base64::encode(metadata_json.as_bytes());
+        let metadata_base64 = general_purpose::STANDARD.encode(metadata_json.as_bytes());
         tempfile.write_all(metadata_base64.as_bytes()).unwrap();
 
         tempfile.flush().unwrap();

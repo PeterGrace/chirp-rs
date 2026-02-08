@@ -72,7 +72,8 @@ cpp! {{
         const Memory* get_memory_by_row(size_t row);
         const char* update_memory(size_t row, uint64_t freq, const char* name,
                                  const char* duplex, uint64_t offset, const char* mode,
-                                 const char* tmode, float rtone, float ctone, uint8_t bank);
+                                 const char* tmode, float rtone, float ctone, uint8_t bank,
+                                 const char* urcall, const char* rpt1call, const char* rpt2call);
         const char* get_vendors();
         const char* get_models_for_vendor(const char* vendor);
         const char* get_serial_ports();
@@ -83,6 +84,10 @@ cpp! {{
         int get_download_progress(int* out_current, int* out_total, const char** out_message);
         int is_download_complete();
         const char* get_download_result();
+        void start_upload_async(const char* vendor, const char* model, const char* port);
+        int get_upload_progress(int* out_current, int* out_total, const char** out_message);
+        int is_upload_complete();
+        const char* get_upload_result();
         const char* delete_memory_at(size_t row);
         void copy_memory_at(size_t row);
         const char* paste_memory_at(size_t row);
@@ -295,6 +300,183 @@ cpp! {{
         }
     }
 
+    // Helper function to show upload dialog
+    void showUploadDialog(QWidget* parent, QTableWidget* table) {
+        QDialog dialog(parent);
+        dialog.setWindowTitle("Upload to Radio");
+        QFormLayout* layout = new QFormLayout(&dialog);
+
+        // Get vendors
+        QString vendorsStr = QString::fromUtf8(get_vendors());
+        QStringList vendors = vendorsStr.split(",", Qt::SkipEmptyParts);
+
+        // Create vendor dropdown
+        QComboBox* vendorCombo = new QComboBox();
+        vendorCombo->addItems(vendors);
+
+        // Create model dropdown (populated when vendor changes)
+        QComboBox* modelCombo = new QComboBox();
+
+        // Create port dropdown
+        QComboBox* portCombo = new QComboBox();
+        QString portsStr = QString::fromUtf8(get_serial_ports());
+        QStringList ports = portsStr.split(",", Qt::SkipEmptyParts);
+        if (ports.isEmpty()) {
+            portCombo->addItem("(No ports found)");
+        } else {
+            portCombo->addItems(ports);
+        }
+
+        // Refresh ports button
+        QPushButton* refreshBtn = new QPushButton("Refresh");
+        QObject::connect(refreshBtn, &QPushButton::clicked, [portCombo, parent]() {
+            QString portsStr = QString::fromUtf8(get_serial_ports());
+            QStringList ports = portsStr.split(",", Qt::SkipEmptyParts);
+            portCombo->clear();
+            if (ports.isEmpty()) {
+                portCombo->addItem("(No ports found)");
+                QMessageBox::warning(parent, "No Serial Ports Found",
+                    "No serial ports were detected.\n\n"
+                    "Please check:\n"
+                    "• Radio is connected via USB\n"
+                    "• USB drivers are installed\n"
+                    "• Radio is powered on");
+            } else {
+                portCombo->addItems(ports);
+            }
+        });
+
+        // Update models when vendor changes
+        QObject::connect(vendorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [vendorCombo, modelCombo]() {
+                QString vendor = vendorCombo->currentText();
+                QString modelsStr = QString::fromUtf8(get_models_for_vendor(vendor.toUtf8().constData()));
+                QStringList models = modelsStr.split(",", Qt::SkipEmptyParts);
+                modelCombo->clear();
+                modelCombo->addItems(models);
+            });
+
+        // Trigger initial model population
+        if (vendors.count() > 0) {
+            vendorCombo->setCurrentIndex(0);
+            QString vendor = vendorCombo->currentText();
+            QString modelsStr = QString::fromUtf8(get_models_for_vendor(vendor.toUtf8().constData()));
+            QStringList models = modelsStr.split(",", Qt::SkipEmptyParts);
+            modelCombo->addItems(models);
+        }
+
+        // Add fields to form
+        layout->addRow("Vendor:", vendorCombo);
+        layout->addRow("Model:", modelCombo);
+
+        QHBoxLayout* portLayout = new QHBoxLayout();
+        portLayout->addWidget(portCombo);
+        portLayout->addWidget(refreshBtn);
+        layout->addRow("Port:", portLayout);
+
+        // Add buttons
+        QDialogButtonBox* buttons = new QDialogButtonBox(
+            QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        buttons->button(QDialogButtonBox::Ok)->setText("Upload");
+        QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        layout->addRow(buttons);
+
+        // Show dialog
+        if (dialog.exec() == QDialog::Accepted) {
+            QString vendor = vendorCombo->currentText();
+            QString model = modelCombo->currentText();
+            QString port = portCombo->currentText();
+
+            if (vendor.isEmpty() || model.isEmpty() || port.isEmpty()) {
+                QMessageBox::warning(parent, "Invalid Selection",
+                    "Please select vendor, model, and port");
+                return;
+            }
+
+            // Create progress dialog
+            QProgressDialog* progressDlg = new QProgressDialog(
+                "Initializing...", "Cancel", 0, 100, parent);
+            progressDlg->setWindowTitle("Uploading to Radio");
+            progressDlg->setWindowModality(Qt::WindowModal);
+            progressDlg->setMinimumDuration(0);
+            progressDlg->setAutoClose(false);
+            progressDlg->setAutoReset(false);
+            progressDlg->setValue(0);
+            progressDlg->show();
+            progressDlg->raise();
+            progressDlg->activateWindow();
+            QApplication::processEvents();
+
+            // Start async upload
+            start_upload_async(
+                vendor.toUtf8().constData(),
+                model.toUtf8().constData(),
+                port.toUtf8().constData()
+            );
+
+            // Create timer to poll progress
+            QTimer* timer = new QTimer(parent);
+            timer->setInterval(100); // Poll every 100ms
+
+            QObject::connect(timer, &QTimer::timeout, [=]() mutable {
+                // Check if user cancelled
+                if (progressDlg->wasCanceled()) {
+                    timer->stop();
+                    progressDlg->deleteLater();
+                    timer->deleteLater();
+                    return;
+                }
+
+                // Get current progress
+                int current = 0;
+                int total = 100;
+                const char* message = nullptr;
+                int percentage = get_upload_progress(&current, &total, &message);
+
+                if (percentage >= 0) {
+                    // Still in progress
+                    progressDlg->setMaximum(total);
+                    progressDlg->setValue(current);
+                    if (message) {
+                        progressDlg->setLabelText(QString::fromUtf8(message));
+                    }
+                    progressDlg->show();
+                }
+
+                // Check if complete
+                int complete = is_upload_complete();
+                if (complete == 1) {
+                    timer->stop();
+                    progressDlg->close();
+
+                    // Get result
+                    const char* error = get_upload_result();
+                    if (error) {
+                        QString errorMsg = QString::fromUtf8(error);
+                        QMessageBox::critical(parent, "Upload Failed",
+                            QString("Failed to upload memories to radio.\n\n"
+                                   "Error: %1\n\n"
+                                   "Please check:\n"
+                                   "• Radio is connected and powered on\n"
+                                   "• Correct serial port is selected\n"
+                                   "• No other program is using the radio")
+                            .arg(errorMsg));
+                        free_error_message(error);
+                    } else {
+                        QMessageBox::information(parent, "Upload Complete",
+                            "Successfully uploaded memories to radio!");
+                    }
+
+                    progressDlg->deleteLater();
+                    timer->deleteLater();
+                }
+            });
+
+            timer->start();
+        }
+    }
+
     // Helper function to show edit dialog for a memory
     void showEditDialog(QWidget* parent, QTableWidget* table, int row) {
         // Get current row data
@@ -359,16 +541,55 @@ cpp! {{
         int currentBank = QString::fromUtf8(data.bank).toInt();
         bankCombo->setCurrentIndex(currentBank);
 
+        // D-STAR fields (for DV mode)
+        QLineEdit* urcallEdit = new QLineEdit(QString::fromUtf8(data.urcall));
+        QLineEdit* rpt1Edit = new QLineEdit(QString::fromUtf8(data.rpt1));
+        QLineEdit* rpt2Edit = new QLineEdit(QString::fromUtf8(data.rpt2));
+
+        urcallEdit->setMaxLength(8);  // D-STAR call signs are max 8 characters
+        rpt1Edit->setMaxLength(8);
+        rpt2Edit->setMaxLength(8);
+
         // Add fields to form
         layout->addRow("Frequency (MHz):", freqEdit);
         layout->addRow("Name:", nameEdit);
         layout->addRow("Duplex:", duplexCombo);
         layout->addRow("Offset (MHz):", offsetEdit);
         layout->addRow("Mode:", modeCombo);
-        layout->addRow("Tone Mode:", tmodeCombo);
-        layout->addRow("TX Tone (Hz):", rtoneCombo);
-        layout->addRow("RX Tone (Hz):", ctoneCombo);
+
+        // Tone fields (hidden for DV mode)
+        QWidget* toneWidget = new QWidget();
+        QFormLayout* toneLayout = new QFormLayout(toneWidget);
+        toneLayout->setContentsMargins(0, 0, 0, 0);
+        toneLayout->addRow("Tone Mode:", tmodeCombo);
+        toneLayout->addRow("TX Tone (Hz):", rtoneCombo);
+        toneLayout->addRow("RX Tone (Hz):", ctoneCombo);
+        layout->addRow(toneWidget);
+
+        // D-STAR fields (hidden for non-DV modes)
+        QWidget* dstarWidget = new QWidget();
+        QFormLayout* dstarLayout = new QFormLayout(dstarWidget);
+        dstarLayout->setContentsMargins(0, 0, 0, 0);
+        dstarLayout->addRow("URCALL:", urcallEdit);
+        dstarLayout->addRow("RPT1CALL:", rpt1Edit);
+        dstarLayout->addRow("RPT2CALL:", rpt2Edit);
+        layout->addRow(dstarWidget);
+
         layout->addRow("Bank:", bankCombo);
+
+        // Show/hide fields based on mode
+        auto updateFieldVisibility = [=]() {
+            bool isDV = modeCombo->currentText() == "DV";
+            toneWidget->setVisible(!isDV);
+            dstarWidget->setVisible(isDV);
+        };
+
+        // Initial visibility
+        updateFieldVisibility();
+
+        // Update visibility when mode changes
+        QObject::connect(modeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                        updateFieldVisibility);
 
         // Add buttons
         QDialogButtonBox* buttons = new QDialogButtonBox(
@@ -430,7 +651,10 @@ cpp! {{
                 tmodeCombo->currentText().toUtf8().constData(),
                 rtone,
                 ctone,
-                static_cast<uint8_t>(bankCombo->currentData().toInt())
+                static_cast<uint8_t>(bankCombo->currentData().toInt()),
+                urcallEdit->text().toUtf8().constData(),
+                rpt1Edit->text().toUtf8().constData(),
+                rpt2Edit->text().toUtf8().constData()
             );
 
             if (error) {
@@ -490,11 +714,29 @@ struct DownloadProgress {
 enum DownloadState {
     Idle,
     InProgress(DownloadProgress),
-    Complete(Result<Vec<Memory>, String>),
+    Complete(Result<(Vec<Memory>, crate::memmap::MemoryMap), String>),
 }
 
 /// Global storage for async download state
 static DOWNLOAD_STATE: Mutex<DownloadState> = Mutex::new(DownloadState::Idle);
+
+/// Upload progress tracking
+#[derive(Clone)]
+struct UploadProgress {
+    current: usize,
+    total: usize,
+    message: String,
+}
+
+/// Upload state machine
+enum UploadState {
+    Idle,
+    InProgress(UploadProgress),
+    Complete(Result<(), String>),
+}
+
+/// Global storage for async upload state
+static UPLOAD_STATE: Mutex<UploadState> = Mutex::new(UploadState::Idle);
 
 /// Convert Memory to row data strings
 fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
@@ -789,15 +1031,46 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
     // For now, we only support TH-D75
     // TODO: Detect radio type from current_file or add a way to track it
     use crate::drivers::thd75::THD75Radio;
+    use crate::drivers::{CloneModeRadio, Radio};
     use crate::formats::{save_img, Metadata};
 
-    let radio = THD75Radio::new();
+    // Get the mmap - must have been loaded from file or download
+    let base_mmap = match &state.mmap {
+        Some(m) => m.clone(),
+        None => {
+            return CString::new(
+                "No memory map available. Please load from file or download from radio first.",
+            )
+            .unwrap()
+            .into_raw()
+        }
+    };
 
-    // Encode memories to MemoryMap
-    let mmap = match radio.encode_memories(&state.memories) {
-        Ok(m) => m,
-        Err(e) => {
-            return CString::new(format!("Failed to encode memories: {}", e))
+    // Create radio and load the base mmap
+    let mut radio = THD75Radio::new();
+    if let Err(e) = radio.process_mmap(&base_mmap) {
+        return CString::new(format!("Failed to process memory map: {}", e))
+            .unwrap()
+            .into_raw();
+    }
+
+    // Update only non-empty memories
+    // Empty memories should be left as-is in the original mmap
+    for mem in &state.memories {
+        if !mem.empty {
+            if let Err(e) = radio.set_memory(mem) {
+                return CString::new(format!("Failed to update memory #{}: {}", mem.number, e))
+                    .unwrap()
+                    .into_raw();
+            }
+        }
+    }
+
+    // Get the updated mmap (preserves bank names and all other data)
+    let mmap = match radio.mmap.clone() {
+        Some(m) => m,
+        None => {
+            return CString::new("Memory map not available after update")
                 .unwrap()
                 .into_raw()
         }
@@ -1153,9 +1426,17 @@ pub unsafe extern "C" fn download_from_radio(
     });
 
     match result {
-        Ok(memories) => {
-            // Use default bank names for now (TODO: Get from radio download)
-            let bank_names: Vec<String> = (0..10).map(|i| format!("Bank {}", i)).collect();
+        Ok((memories, mmap)) => {
+            // Get bank names from the downloaded mmap
+            let bank_names = {
+                use crate::drivers::thd75::THD75Radio;
+                use crate::drivers::{CloneModeRadio, Radio};
+                let mut radio = THD75Radio::new();
+                radio.process_mmap(&mmap).ok();
+                radio.get_bank_names().unwrap_or_else(|_| {
+                    (0..30).map(|i| format!("Bank {}", i)).collect()
+                })
+            };
 
             // Convert to CStrings (include all memories, even empty ones)
             let mut all_cstrings = Vec::new();
@@ -1175,7 +1456,7 @@ pub unsafe extern "C" fn download_from_radio(
                 cstrings: all_cstrings,
                 current_file: None,
                 is_modified: false,
-                mmap: None, // TODO: Get mmap from radio download
+                mmap: Some(mmap), // Store mmap from radio download
                 bank_names,
                 clipboard: None,
             });
@@ -1304,9 +1585,17 @@ pub extern "C" fn get_download_result() -> *const c_char {
     let result = std::mem::replace(&mut *state, DownloadState::Idle);
 
     match result {
-        DownloadState::Complete(Ok(memories)) => {
-            // Use default bank names for now (TODO: Get from radio download)
-            let bank_names: Vec<String> = (0..10).map(|i| format!("Bank {}", i)).collect();
+        DownloadState::Complete(Ok((memories, mmap))) => {
+            // Get bank names from the downloaded mmap
+            let bank_names = {
+                use crate::drivers::thd75::THD75Radio;
+                use crate::drivers::{CloneModeRadio, Radio};
+                let mut radio = THD75Radio::new();
+                radio.process_mmap(&mmap).ok();
+                radio.get_bank_names().unwrap_or_else(|_| {
+                    (0..30).map(|i| format!("Bank {}", i)).collect()
+                })
+            };
 
             // Convert to CStrings (include all memories, even empty ones)
             let mut all_cstrings = Vec::new();
@@ -1326,7 +1615,7 @@ pub extern "C" fn get_download_result() -> *const c_char {
                 cstrings: all_cstrings,
                 current_file: None,
                 is_modified: false,
-                mmap: None, // TODO: Get mmap from radio download
+                mmap: Some(mmap), // Store mmap from radio download
                 bank_names,
                 clipboard: None,
             });
@@ -1340,6 +1629,168 @@ pub extern "C" fn get_download_result() -> *const c_char {
         }
         _ => {
             let err_msg = "Download not complete";
+            CString::new(err_msg).unwrap().into_raw()
+        }
+    }
+}
+
+/// FFI: Start async upload to radio
+#[no_mangle]
+pub unsafe extern "C" fn start_upload_async(
+    vendor: *const c_char,
+    model: *const c_char,
+    port: *const c_char,
+) {
+    // Convert C strings to Rust
+    let vendor_str = CStr::from_ptr(vendor).to_str().unwrap_or("").to_string();
+    let model_str = CStr::from_ptr(model).to_str().unwrap_or("").to_string();
+    let port_str = CStr::from_ptr(port).to_str().unwrap_or("").to_string();
+
+    // Get memories and mmap from current state
+    let (memories, mmap) = {
+        let data = MEMORY_DATA.lock().unwrap();
+        match data.as_ref() {
+            Some(state) => {
+                let mmap = match &state.mmap {
+                    Some(m) => m.clone(),
+                    None => {
+                        let mut upload_state = UPLOAD_STATE.lock().unwrap();
+                        *upload_state = UploadState::Complete(Err(
+                            "No memory map available. Please download from radio first."
+                                .to_string(),
+                        ));
+                        return;
+                    }
+                };
+                (state.memories.clone(), mmap)
+            }
+            None => {
+                let mut state = UPLOAD_STATE.lock().unwrap();
+                *state = UploadState::Complete(Err("No data loaded".to_string()));
+                return;
+            }
+        }
+    };
+
+    // Reset state to InProgress
+    {
+        let mut state = UPLOAD_STATE.lock().unwrap();
+        *state = UploadState::InProgress(UploadProgress {
+            current: 0,
+            total: 100,
+            message: "Initializing...".to_string(),
+        });
+    }
+
+    // Spawn background thread to do the upload
+    thread::spawn(move || {
+        // Create tokio runtime
+        let runtime = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                let mut state = UPLOAD_STATE.lock().unwrap();
+                *state =
+                    UploadState::Complete(Err(format!("Failed to create async runtime: {}", e)));
+                return;
+            }
+        };
+
+        // Run the upload
+        let result = runtime.block_on(async {
+            // Progress callback that updates global state
+            let progress_fn = Arc::new(|current: usize, total: usize, msg: String| {
+                let mut state = UPLOAD_STATE.lock().unwrap();
+                *state = UploadState::InProgress(UploadProgress {
+                    current,
+                    total,
+                    message: msg,
+                });
+            });
+
+            crate::gui::radio_ops::upload_to_radio(
+                port_str,
+                mmap,
+                memories,
+                vendor_str,
+                model_str,
+                progress_fn,
+            )
+            .await
+        });
+
+        // Store result
+        let mut state = UPLOAD_STATE.lock().unwrap();
+        *state = UploadState::Complete(result);
+    });
+}
+
+/// FFI: Get upload progress
+/// Returns percentage (0-100), or -1 if not started
+#[no_mangle]
+pub extern "C" fn get_upload_progress(
+    out_current: *mut i32,
+    out_total: *mut i32,
+    out_message: *mut *const c_char,
+) -> i32 {
+    static mut MESSAGE_BUF: Option<CString> = None;
+
+    let state = UPLOAD_STATE.lock().unwrap();
+
+    match &*state {
+        UploadState::InProgress(progress) => {
+            unsafe {
+                if !out_current.is_null() {
+                    *out_current = progress.current as i32;
+                }
+                if !out_total.is_null() {
+                    *out_total = progress.total as i32;
+                }
+                if !out_message.is_null() {
+                    MESSAGE_BUF = Some(CString::new(progress.message.clone()).unwrap());
+                    *out_message = MESSAGE_BUF.as_ref().unwrap().as_ptr();
+                }
+            }
+
+            // Calculate percentage
+            if progress.total > 0 {
+                ((progress.current as f64 / progress.total as f64) * 100.0) as i32
+            } else {
+                0
+            }
+        }
+        _ => -1,
+    }
+}
+
+/// FFI: Check if upload is complete
+/// Returns 1 if complete, 0 otherwise
+#[no_mangle]
+pub extern "C" fn is_upload_complete() -> i32 {
+    let state = UPLOAD_STATE.lock().unwrap();
+    match &*state {
+        UploadState::Complete(_) => 1,
+        _ => 0,
+    }
+}
+
+/// FFI: Get upload result
+/// Returns NULL on success, or error message on failure
+#[no_mangle]
+pub extern "C" fn get_upload_result() -> *const c_char {
+    let mut state = UPLOAD_STATE.lock().unwrap();
+    let result = std::mem::replace(&mut *state, UploadState::Idle);
+
+    match result {
+        UploadState::Complete(Ok(())) => {
+            // Success - return NULL
+            std::ptr::null()
+        }
+        UploadState::Complete(Err(e)) => {
+            let err_msg = format!("Upload failed: {}", e);
+            CString::new(err_msg).unwrap().into_raw()
+        }
+        _ => {
+            let err_msg = "Upload not complete";
             CString::new(err_msg).unwrap().into_raw()
         }
     }
@@ -1359,6 +1810,9 @@ pub unsafe extern "C" fn update_memory(
     rtone: f32,
     ctone: f32,
     bank: u8,
+    urcall: *const c_char,
+    rpt1call: *const c_char,
+    rpt2call: *const c_char,
 ) -> *const c_char {
     let mut data = MEMORY_DATA.lock().unwrap();
     let state = match data.as_mut() {
@@ -1375,6 +1829,9 @@ pub unsafe extern "C" fn update_memory(
     let duplex_str = CStr::from_ptr(duplex).to_str().unwrap_or("").to_string();
     let mode_str = CStr::from_ptr(mode).to_str().unwrap_or("FM").to_string();
     let tmode_str = CStr::from_ptr(tmode).to_str().unwrap_or("").to_string();
+    let urcall_str = CStr::from_ptr(urcall).to_str().unwrap_or("").to_string();
+    let rpt1call_str = CStr::from_ptr(rpt1call).to_str().unwrap_or("").to_string();
+    let rpt2call_str = CStr::from_ptr(rpt2call).to_str().unwrap_or("").to_string();
 
     // Update the memory
     let mem = &mut state.memories[row];
@@ -1387,6 +1844,9 @@ pub unsafe extern "C" fn update_memory(
     mem.rtone = rtone;
     mem.ctone = ctone;
     mem.bank = bank;
+    mem.dv_urcall = urcall_str;
+    mem.dv_rpt1call = rpt1call_str;
+    mem.dv_rpt2call = rpt2call_str;
 
     // Regenerate CStrings for this row
     let bank_names = &state.bank_names;
@@ -1765,10 +2225,8 @@ pub fn run_qt_app() -> i32 {
             radioMenu->addAction("&Download from Radio", [=]() {
                 showDownloadDialog(window, table);
             });
-            radioMenu->addAction("&Upload to Radio", [window]() {
-                // TODO: Show upload dialog
-                QMessageBox::information(window, "Upload",
-                    "Upload to radio functionality coming soon");
+            radioMenu->addAction("&Upload to Radio", [=]() {
+                showUploadDialog(window, table);
             });
 
             // Enable context menu on table

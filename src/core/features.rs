@@ -385,10 +385,12 @@ mod tests {
 
     #[test]
     fn test_validation() {
-        let mut rf = RadioFeatures::default();
-        rf.valid_modes = vec!["FM".to_string(), "AM".to_string()];
-        rf.valid_tmodes = vec!["".to_string(), "Tone".to_string()];
-        rf.memory_bounds = (1, 200);
+        let rf = RadioFeatures {
+            valid_modes: vec!["FM".to_string(), "AM".to_string()],
+            valid_tmodes: vec!["".to_string(), "Tone".to_string()],
+            memory_bounds: (1, 200),
+            ..Default::default()
+        };
 
         let mut mem = Memory::new(1);
         mem.freq = 146_520_000;

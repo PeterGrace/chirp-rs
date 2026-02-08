@@ -57,6 +57,7 @@ const BANDS: &[(u32, u32)] = &[
 /// IC-9700 Memory Format
 /// Reference: MEM_IC9700_FORMAT in icomciv.py lines 145-167
 #[derive(Debug)]
+#[allow(dead_code)]
 struct RawMemory {
     bank: u8,
     number: u16, // BCD
