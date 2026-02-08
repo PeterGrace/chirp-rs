@@ -16,6 +16,7 @@
 *.swo
 *~
 **/*.log
+**/*.csv
 
 # OS files
 .DS_Store

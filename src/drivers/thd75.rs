@@ -306,17 +306,24 @@ impl THD75Radio {
         let mut memories = Vec::new();
 
         for channel in 0..NUM_MEMORIES {
-            if let Some(mem) = self.get_memory(channel)? {
-                if !mem.empty {
-                    memories.push(mem);
+            let mem = match self.get_memory(channel)? {
+                Some(mem) => mem,
+                None => {
+                    // Create an empty memory entry for unused slots
+                    let mut empty_mem = Memory::new(channel);
+                    empty_mem.empty = true;
+                    empty_mem
                 }
-            }
+            };
+            memories.push(mem);
         }
 
+        let non_empty_count = memories.iter().filter(|m| !m.empty).count();
         tracing::info!(
-            "Found {} non-empty memories out of {} channels",
+            "Decoded {} memory channels ({} non-empty, {} empty)",
             memories.len(),
-            NUM_MEMORIES
+            non_empty_count,
+            memories.len() - non_empty_count
         );
         Ok(memories)
     }
@@ -331,8 +338,13 @@ impl THD75Radio {
             data[i] = 0x00;
         }
 
-        // Process each memory
+        // Process each memory (skip empty ones - they stay as 0xFF)
         for mem in memories {
+            // Skip empty memories - they should remain as 0xFF in the memory map
+            if mem.empty {
+                continue;
+            }
+
             let channel = mem.number;
             if channel >= NUM_MEMORIES {
                 return Err(RadioError::InvalidMemory(channel));
@@ -1263,9 +1275,15 @@ mod tests {
         assert_eq!(mem50.offset, 5_000_000);
         assert_eq!(mem50.duplex, "-");
 
-        // Test that we find the expected number of non-empty memories
+        // Test that we get all memory slots with correct non-empty count
         let memories = radio.get_memories().expect("Failed to get memories");
-        assert_eq!(memories.len(), 91, "Expected 91 non-empty memories");
+        assert_eq!(
+            memories.len(),
+            NUM_MEMORIES as usize,
+            "Expected all memory slots"
+        );
+        let non_empty_count = memories.iter().filter(|m| !m.empty).count();
+        assert_eq!(non_empty_count, 91, "Expected 91 non-empty memories");
     }
 
     #[test]

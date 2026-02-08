@@ -63,6 +63,8 @@ cpp! {{
         RowData get_memory_row(size_t row);
         const char* load_file(const char* path);
         const char* save_file(const char* path);
+        const char* export_to_csv(const char* path);
+        const char* import_from_csv(const char* path);
         void new_file();
         const char* get_current_filename();
         const char* get_current_filepath();
@@ -81,6 +83,10 @@ cpp! {{
         int get_download_progress(int* out_current, int* out_total, const char** out_message);
         int is_download_complete();
         const char* get_download_result();
+        const char* delete_memory_at(size_t row);
+        void copy_memory_at(size_t row);
+        const char* paste_memory_at(size_t row);
+        int has_clipboard_memory();
     }
 
     // Helper function to refresh table from Rust data
@@ -465,6 +471,7 @@ struct AppState {
     is_modified: bool,
     mmap: Option<crate::memmap::MemoryMap>,
     bank_names: Vec<String>,
+    clipboard: Option<Memory>,
 }
 
 /// Global storage for memory data and C strings
@@ -491,6 +498,25 @@ static DOWNLOAD_STATE: Mutex<DownloadState> = Mutex::new(DownloadState::Idle);
 
 /// Convert Memory to row data strings
 fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
+    // If memory is empty, show placeholder values
+    if mem.empty {
+        return vec![
+            mem.number.to_string(),
+            String::new(),
+            String::from("(Empty)"),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+        ];
+    }
+
     let freq_str = Memory::format_freq(mem.freq);
     let offset_str = if mem.offset > 0 {
         Memory::format_freq(mem.offset)
@@ -631,6 +657,7 @@ fn set_memory_data(memories: Vec<Memory>, bank_names: Vec<String>) {
         is_modified: false,
         mmap: None,
         bank_names,
+        clipboard: None,
     });
 }
 
@@ -644,6 +671,7 @@ fn clear_memory_data() {
         is_modified: false,
         mmap: None,
         bank_names: (0..10).map(|i| format!("Bank {}", i)).collect(),
+        clipboard: None,
     });
 }
 
@@ -699,9 +727,9 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
             }
         };
 
-        let names = radio.get_bank_names().unwrap_or_else(|_| {
-            (0..10).map(|i| format!("Bank {}", i)).collect()
-        });
+        let names = radio
+            .get_bank_names()
+            .unwrap_or_else(|_| (0..10).map(|i| format!("Bank {}", i)).collect());
 
         (mems, names)
     } else {
@@ -709,12 +737,9 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         return CString::new(err_msg).unwrap().into_raw();
     };
 
-    // Filter out empty memories
-    let non_empty_memories: Vec<Memory> = memories.into_iter().filter(|m| !m.empty).collect();
-
-    // Convert to CStrings
+    // Convert to CStrings (include all memories, even empty ones)
     let mut all_cstrings = Vec::new();
-    for mem in &non_empty_memories {
+    for mem in &memories {
         let strings = memory_to_row_strings(mem, &bank_names);
         let cstrings: Vec<CString> = strings
             .into_iter()
@@ -726,12 +751,13 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
     // Update global state
     let mut data = MEMORY_DATA.lock().unwrap();
     *data = Some(AppState {
-        memories: non_empty_memories,
+        memories,
         cstrings: all_cstrings,
         current_file: Some(path),
         is_modified: false,
         mmap: Some(mmap),
         bank_names,
+        clipboard: None,
     });
 
     // Return NULL to indicate success
@@ -790,6 +816,97 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
     // Update state
     state.current_file = Some(path);
     state.is_modified = false;
+
+    // Return NULL to indicate success
+    std::ptr::null()
+}
+
+/// FFI: Export memories to CSV file
+/// Returns NULL on success, or error message on failure
+#[no_mangle]
+pub unsafe extern "C" fn export_to_csv(path: *const c_char) -> *const c_char {
+    // Convert C string to Rust PathBuf
+    let c_str = CStr::from_ptr(path);
+    let path_str = match c_str.to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            return CString::new("Invalid file path encoding")
+                .unwrap()
+                .into_raw()
+        }
+    };
+    let path = PathBuf::from(path_str);
+
+    let data = MEMORY_DATA.lock().unwrap();
+    let state = match data.as_ref() {
+        Some(s) => s,
+        None => return CString::new("No data to export").unwrap().into_raw(),
+    };
+
+    // Export all memories (including empty ones if desired, or filter them)
+    use crate::formats::export_csv;
+    if let Err(e) = export_csv(&path, &state.memories) {
+        return CString::new(format!("Failed to export CSV: {}", e))
+            .unwrap()
+            .into_raw();
+    }
+
+    // Return NULL to indicate success
+    std::ptr::null()
+}
+
+/// FFI: Import memories from CSV file
+/// Returns NULL on success, or error message on failure
+#[no_mangle]
+pub unsafe extern "C" fn import_from_csv(path: *const c_char) -> *const c_char {
+    // Convert C string to Rust PathBuf
+    let c_str = CStr::from_ptr(path);
+    let path_str = match c_str.to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            return CString::new("Invalid file path encoding")
+                .unwrap()
+                .into_raw()
+        }
+    };
+    let path = PathBuf::from(path_str);
+
+    // Import memories from CSV
+    use crate::formats::import_csv;
+    let memories = match import_csv(&path) {
+        Ok(mems) => mems,
+        Err(e) => {
+            return CString::new(format!("Failed to import CSV: {}", e))
+                .unwrap()
+                .into_raw();
+        }
+    };
+
+    // Use default bank names since CSV doesn't contain memory map
+    let bank_names: Vec<String> = (0..10).map(|i| format!("Bank {}", i)).collect();
+
+    // Convert to CStrings
+    let mut all_cstrings = Vec::new();
+    for mem in &memories {
+        let strings = memory_to_row_strings(mem, &bank_names);
+        let cstrings: Vec<CString> = strings
+            .into_iter()
+            .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
+            .collect();
+        all_cstrings.push(cstrings);
+    }
+
+    // Update global state
+    let mut data = MEMORY_DATA.lock().unwrap();
+    *data = Some(AppState {
+        memories,
+        cstrings: all_cstrings,
+        current_file: None,
+        is_modified: true, // Mark as modified since imported from CSV
+        mmap: None,        // No memory map from CSV import
+        bank_names,
+        clipboard: None,
+    });
 
     // Return NULL to indicate success
     std::ptr::null()
@@ -1037,15 +1154,12 @@ pub unsafe extern "C" fn download_from_radio(
 
     match result {
         Ok(memories) => {
-            // Filter out empty memories
-            let non_empty: Vec<Memory> = memories.into_iter().filter(|m| !m.empty).collect();
-
             // Use default bank names for now (TODO: Get from radio download)
             let bank_names: Vec<String> = (0..10).map(|i| format!("Bank {}", i)).collect();
 
-            // Convert to CStrings
+            // Convert to CStrings (include all memories, even empty ones)
             let mut all_cstrings = Vec::new();
-            for mem in &non_empty {
+            for mem in &memories {
                 let strings = memory_to_row_strings(mem, &bank_names);
                 let cstrings: Vec<CString> = strings
                     .into_iter()
@@ -1057,12 +1171,13 @@ pub unsafe extern "C" fn download_from_radio(
             // Update global state
             let mut data = MEMORY_DATA.lock().unwrap();
             *data = Some(AppState {
-                memories: non_empty,
+                memories,
                 cstrings: all_cstrings,
                 current_file: None,
                 is_modified: false,
                 mmap: None, // TODO: Get mmap from radio download
                 bank_names,
+                clipboard: None,
             });
 
             // Return NULL to indicate success
@@ -1190,15 +1305,12 @@ pub extern "C" fn get_download_result() -> *const c_char {
 
     match result {
         DownloadState::Complete(Ok(memories)) => {
-            // Filter out empty memories
-            let non_empty: Vec<Memory> = memories.into_iter().filter(|m| !m.empty).collect();
-
             // Use default bank names for now (TODO: Get from radio download)
             let bank_names: Vec<String> = (0..10).map(|i| format!("Bank {}", i)).collect();
 
-            // Convert to CStrings
+            // Convert to CStrings (include all memories, even empty ones)
             let mut all_cstrings = Vec::new();
-            for mem in &non_empty {
+            for mem in &memories {
                 let strings = memory_to_row_strings(mem, &bank_names);
                 let cstrings: Vec<CString> = strings
                     .into_iter()
@@ -1210,12 +1322,13 @@ pub extern "C" fn get_download_result() -> *const c_char {
             // Update global state
             let mut data = MEMORY_DATA.lock().unwrap();
             *data = Some(AppState {
-                memories: non_empty,
+                memories,
                 cstrings: all_cstrings,
                 current_file: None,
                 is_modified: false,
                 mmap: None, // TODO: Get mmap from radio download
                 bank_names,
+                clipboard: None,
             });
 
             // Return NULL to indicate success
@@ -1289,6 +1402,110 @@ pub unsafe extern "C" fn update_memory(
 
     // Return NULL to indicate success
     std::ptr::null()
+}
+
+/// Delete memory at the given row (marks it as empty)
+#[no_mangle]
+pub extern "C" fn delete_memory_at(row: usize) -> *const c_char {
+    let mut data = MEMORY_DATA.lock().unwrap();
+    let state = match data.as_mut() {
+        Some(s) => s,
+        None => return CString::new("No data loaded").unwrap().into_raw(),
+    };
+
+    if row >= state.memories.len() {
+        return CString::new("Invalid row index").unwrap().into_raw();
+    }
+
+    // Mark the memory as empty instead of removing it
+    let mem = &mut state.memories[row];
+    mem.empty = true;
+    mem.freq = 0;
+    mem.name = String::new();
+    mem.duplex = String::new();
+    mem.offset = 0;
+    mem.mode = String::new();
+    mem.tmode = String::new();
+    mem.rtone = 0.0;
+    mem.ctone = 0.0;
+    mem.dv_urcall = String::new();
+    mem.dv_rpt1call = String::new();
+    mem.dv_rpt2call = String::new();
+
+    // Regenerate CStrings for this row
+    let bank_names = &state.bank_names;
+    let strings = memory_to_row_strings(mem, bank_names);
+    let cstrings: Vec<CString> = strings
+        .into_iter()
+        .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
+        .collect();
+    state.cstrings[row] = cstrings;
+
+    // Mark as modified
+    state.is_modified = true;
+
+    std::ptr::null()
+}
+
+/// Copy memory at the given row to clipboard
+#[no_mangle]
+pub extern "C" fn copy_memory_at(row: usize) {
+    let mut data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_mut() {
+        if row < state.memories.len() {
+            state.clipboard = Some(state.memories[row].clone());
+        }
+    }
+}
+
+/// Paste clipboard memory at the given row (replaces existing)
+#[no_mangle]
+pub extern "C" fn paste_memory_at(row: usize) -> *const c_char {
+    let mut data = MEMORY_DATA.lock().unwrap();
+    let state = match data.as_mut() {
+        Some(s) => s,
+        None => return CString::new("No data loaded").unwrap().into_raw(),
+    };
+
+    if row >= state.memories.len() {
+        return CString::new("Invalid row index").unwrap().into_raw();
+    }
+
+    let clipboard_mem = match &state.clipboard {
+        Some(mem) => mem.clone(),
+        None => return CString::new("No memory in clipboard").unwrap().into_raw(),
+    };
+
+    // Update the memory at the row
+    let mut new_mem = clipboard_mem;
+    new_mem.number = row as u32;
+    state.memories[row] = new_mem.clone();
+
+    // Regenerate CStrings for this row
+    let bank_names = &state.bank_names;
+    let strings = memory_to_row_strings(&new_mem, bank_names);
+    let cstrings: Vec<CString> = strings
+        .into_iter()
+        .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
+        .collect();
+    state.cstrings[row] = cstrings;
+
+    // Mark as modified
+    state.is_modified = true;
+
+    std::ptr::null()
+}
+
+/// Check if there's a memory in the clipboard
+#[no_mangle]
+pub extern "C" fn has_clipboard_memory() -> i32 {
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        if state.clipboard.is_some() {
+            return 1;
+        }
+    }
+    0
 }
 
 /// Create sample test memories
@@ -1495,6 +1712,52 @@ pub fn run_qt_app() -> i32 {
             });
 
             fileMenu->addSeparator();
+
+            fileMenu->addAction("&Import from CSV...", [=]() {
+                QString fileName = QFileDialog::getOpenFileName(window,
+                    "Import from CSV", "", "CSV Files (*.csv)");
+                if (!fileName.isEmpty()) {
+                    const char* error = import_from_csv(fileName.toUtf8().constData());
+                    if (error) {
+                        QString errorMsg = QString::fromUtf8(error);
+                        QMessageBox::critical(window, "Import Failed",
+                            QString("Could not import CSV file:\n%1\n\nError: %2\n\n"
+                                   "Please ensure:\n"
+                                   "• File is a valid CSV file\n"
+                                   "• File has correct column headers\n"
+                                   "• File is not corrupted")
+                            .arg(fileName).arg(errorMsg));
+                        free_error_message(error);
+                    } else {
+                        refreshTable(table);
+                        window->setWindowTitle("CHIRP-RS - Imported from CSV");
+                        QMessageBox::information(window, "Import Successful",
+                            QString("Successfully imported %1 memories from CSV")
+                                .arg(get_memory_count()));
+                    }
+                }
+            });
+
+            fileMenu->addAction("&Export to CSV...", [=]() {
+                QString fileName = QFileDialog::getSaveFileName(window,
+                    "Export to CSV", "", "CSV Files (*.csv)");
+                if (!fileName.isEmpty()) {
+                    const char* error = export_to_csv(fileName.toUtf8().constData());
+                    if (error) {
+                        QString errorMsg = QString::fromUtf8(error);
+                        QMessageBox::critical(window, "Export Failed",
+                            QString("Could not export to CSV:\n%1\n\nError: %2")
+                            .arg(fileName).arg(errorMsg));
+                        free_error_message(error);
+                    } else {
+                        QMessageBox::information(window, "Export Successful",
+                            QString("Successfully exported %1 memories to CSV:\n%2")
+                                .arg(get_memory_count()).arg(fileName));
+                    }
+                }
+            });
+
+            fileMenu->addSeparator();
             fileMenu->addAction("E&xit", &app, &QApplication::quit);
 
             // Radio menu
@@ -1507,6 +1770,59 @@ pub fn run_qt_app() -> i32 {
                 QMessageBox::information(window, "Upload",
                     "Upload to radio functionality coming soon");
             });
+
+            // Enable context menu on table
+            table->setContextMenuPolicy(Qt::CustomContextMenu);
+
+            // Connect context menu request
+            QObject::connect(table, &QTableWidget::customContextMenuRequested,
+                [=](const QPoint& pos) {
+                    QTableWidgetItem* item = table->itemAt(pos);
+                    if (!item) return;
+
+                    int row = item->row();
+                    QMenu contextMenu;
+
+                    // Cut, Copy, Paste, Clear operations
+                    QAction* cutAction = contextMenu.addAction("Cut");
+                    QAction* copyAction = contextMenu.addAction("Copy");
+                    QAction* pasteAction = contextMenu.addAction("Paste");
+                    contextMenu.addSeparator();
+                    QAction* clearAction = contextMenu.addAction("Clear");
+
+                    // Show menu and handle selection
+                    QAction* selectedAction = contextMenu.exec(table->viewport()->mapToGlobal(pos));
+
+                    if (selectedAction == cutAction) {
+                        // Copy then clear
+                        copy_memory_at(row);
+                        const char* error = delete_memory_at(row);
+                        if (error) {
+                            QMessageBox::warning(window, "Error", QString::fromUtf8(error));
+                            free_error_message(error);
+                        } else {
+                            refreshTable(table);
+                        }
+                    } else if (selectedAction == copyAction) {
+                        copy_memory_at(row);
+                    } else if (selectedAction == pasteAction) {
+                        const char* error = paste_memory_at(row);
+                        if (error) {
+                            QMessageBox::warning(window, "Error", QString::fromUtf8(error));
+                            free_error_message(error);
+                        } else {
+                            refreshTable(table);
+                        }
+                    } else if (selectedAction == clearAction) {
+                        const char* error = delete_memory_at(row);
+                        if (error) {
+                            QMessageBox::warning(window, "Error", QString::fromUtf8(error));
+                            free_error_message(error);
+                        } else {
+                            refreshTable(table);
+                        }
+                    }
+                });
 
             // Connect double-click event to edit dialog
             QObject::connect(table, &QTableWidget::cellDoubleClicked,

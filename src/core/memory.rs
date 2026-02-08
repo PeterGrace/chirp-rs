@@ -288,6 +288,7 @@ impl Memory {
     }
 
     /// CSV header format
+    /// CSV header matching official CHIRP format (recent version - 21 columns)
     pub const CSV_HEADER: &'static [&'static str] = &[
         "Location",
         "Name",
@@ -310,10 +311,11 @@ impl Memory {
         "RPT1CALL",
         "RPT2CALL",
         "DVCODE",
-        "Bank",
+        // Note: "Bank" is NOT part of official CHIRP CSV format
+        // We can still import it if present, but don't export it by default
     ];
 
-    /// Export to CSV row
+    /// Export to CSV row (matches official CHIRP format - 21 columns)
     pub fn to_csv(&self) -> Vec<String> {
         vec![
             format!("{}", self.number),
@@ -340,7 +342,7 @@ impl Memory {
             self.dv_rpt1call.clone(),
             self.dv_rpt2call.clone(),
             format!("{}", self.dv_code),
-            format!("{}", self.bank),
+            // Note: Bank is NOT exported (not part of official CHIRP CSV format)
         ]
     }
 }
