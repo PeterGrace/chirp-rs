@@ -198,22 +198,25 @@ impl RawMemory {
         let mut mem = if mode == "DV" {
             // D-STAR mode - create DVMemory and populate both base and DV fields
             let mut dv = DVMemory::new(number);
-            dv.dv_urcall = String::from_utf8_lossy(&self.urcall).trim_end().to_string();
-            dv.dv_rpt1call = String::from_utf8_lossy(&self.rpt1call)
-                .trim_end()
-                .to_string();
-            dv.dv_rpt2call = String::from_utf8_lossy(&self.rpt2call)
-                .trim_end()
-                .to_string();
-            dv.dv_code = self.dig_code;
 
-            // Set base fields
+            // Set base Memory DV fields (not DVMemory's duplicate fields)
+            // These will be preserved when we return dv.base below
+            dv.base.dv_urcall = String::from_utf8_lossy(&self.urcall).trim_end().to_string();
+            dv.base.dv_rpt1call = String::from_utf8_lossy(&self.rpt1call)
+                .trim_end()
+                .to_string();
+            dv.base.dv_rpt2call = String::from_utf8_lossy(&self.rpt2call)
+                .trim_end()
+                .to_string();
+            dv.base.dv_code = self.dig_code;
+
+            // Set other base fields
             dv.base.freq = self.freq;
             dv.base.name = String::from_utf8_lossy(&self.name).trim_end().to_string();
             dv.base.mode = mode.to_string();
 
             // Return base memory (Radio trait expects Memory, not DVMemory)
-            // TODO: Enhance Radio trait to support DVMemory return type
+            // The base.dv_* fields are now populated, so they'll be available
             dv.base.clone()
         } else {
             Memory::new(number)
@@ -282,12 +285,13 @@ impl RawMemory {
         let freq_bcd = bcd::int_to_bcd_le(mem.freq, 5)?;
         data.extend_from_slice(&freq_bcd);
 
-        // Mode
+        // Mode (BCD encoded)
         let mode_idx = MODES
             .iter()
             .position(|m| m.map(|s| s == mem.mode.as_str()).unwrap_or(false))
             .ok_or_else(|| RadioError::Unsupported(format!("Mode not supported: {}", mem.mode)))?;
-        data.push(mode_idx as u8);
+        let mode_bcd = bcd::int_to_bcd_be(mode_idx as u64, 1)?;
+        data.push(mode_bcd[0]);
 
         // Filter (1 = FIL1, which is default for most modes)
         data.push(1);
@@ -346,9 +350,8 @@ impl RawMemory {
         let dtcs_bcd = bcd::int_to_bcd_be(mem.dtcs as u64, 2)?;
         data.extend_from_slice(&dtcs_bcd);
 
-        // Digital code (0 for regular memory)
-        // Note: For D-STAR memories, this would come from DVMemory but we only have Memory here
-        data.push(0);
+        // Digital code (dv_code field from Memory struct)
+        data.push(mem.dv_code);
 
         // Duplex offset (BCD, little-endian, 3 bytes)
         let offset = (mem.offset / 100) as u32;
