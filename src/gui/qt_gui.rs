@@ -31,6 +31,7 @@ cpp! {{
     #include <QtWidgets/QFormLayout>
     #include <QtWidgets/QLineEdit>
     #include <QtWidgets/QComboBox>
+    #include <QtWidgets/QSpinBox>
     #include <QtWidgets/QProgressDialog>
     #include <QtCore/QString>
     #include <QtCore/QStringList>
@@ -69,11 +70,12 @@ cpp! {{
         const Memory* get_memory_by_row(size_t row);
         const char* update_memory(size_t row, uint64_t freq, const char* name,
                                  const char* duplex, uint64_t offset, const char* mode,
-                                 const char* tmode, float rtone, float ctone);
+                                 const char* tmode, float rtone, float ctone, uint8_t bank);
         const char* get_vendors();
         const char* get_models_for_vendor(const char* vendor);
         const char* get_serial_ports();
         const char* get_ctcss_tones();
+        const char* get_bank_names();
         const char* download_from_radio(const char* vendor, const char* model, const char* port);
         void start_download_async(const char* vendor, const char* model, const char* port);
         int get_download_progress(int* out_current, int* out_total, const char** out_message);
@@ -338,6 +340,19 @@ cpp! {{
             ctoneCombo->setCurrentText("88.5");
         }
 
+        // Bank selection (0-9) - use combo box with actual bank names from radio
+        QComboBox* bankCombo = new QComboBox();
+        QString bankNamesStr = QString::fromUtf8(get_bank_names());
+        QStringList bankNames = bankNamesStr.split(",", Qt::SkipEmptyParts);
+
+        for (int i = 0; i < bankNames.size() && i < 10; i++) {
+            bankCombo->addItem(bankNames[i], i);
+        }
+
+        // Set current bank from data
+        int currentBank = QString::fromUtf8(data.bank).toInt();
+        bankCombo->setCurrentIndex(currentBank);
+
         // Add fields to form
         layout->addRow("Frequency (MHz):", freqEdit);
         layout->addRow("Name:", nameEdit);
@@ -347,6 +362,7 @@ cpp! {{
         layout->addRow("Tone Mode:", tmodeCombo);
         layout->addRow("TX Tone (Hz):", rtoneCombo);
         layout->addRow("RX Tone (Hz):", ctoneCombo);
+        layout->addRow("Bank:", bankCombo);
 
         // Add buttons
         QDialogButtonBox* buttons = new QDialogButtonBox(
@@ -407,7 +423,8 @@ cpp! {{
                 modeCombo->currentText().toUtf8().constData(),
                 tmodeCombo->currentText().toUtf8().constData(),
                 rtone,
-                ctone
+                ctone,
+                static_cast<uint8_t>(bankCombo->currentData().toInt())
             );
 
             if (error) {
@@ -446,6 +463,8 @@ struct AppState {
     cstrings: Vec<Vec<CString>>,
     current_file: Option<PathBuf>,
     is_modified: bool,
+    mmap: Option<crate::memmap::MemoryMap>,
+    bank_names: Vec<String>,
 }
 
 /// Global storage for memory data and C strings
@@ -471,7 +490,7 @@ enum DownloadState {
 static DOWNLOAD_STATE: Mutex<DownloadState> = Mutex::new(DownloadState::Idle);
 
 /// Convert Memory to row data strings
-fn memory_to_row_strings(mem: &Memory) -> Vec<String> {
+fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
     let freq_str = Memory::format_freq(mem.freq);
     let offset_str = if mem.offset > 0 {
         Memory::format_freq(mem.offset)
@@ -515,6 +534,12 @@ fn memory_to_row_strings(mem: &Memory) -> Vec<String> {
         .map(|p| p.label().to_string())
         .unwrap_or_default();
 
+    // Get bank name, fallback to number if out of range
+    let bank_str = bank_names
+        .get(mem.bank as usize)
+        .cloned()
+        .unwrap_or_else(|| format!("Bank {}", mem.bank));
+
     vec![
         mem.number.to_string(),
         freq_str,
@@ -528,7 +553,7 @@ fn memory_to_row_strings(mem: &Memory) -> Vec<String> {
         urcall,
         rpt1,
         rpt2,
-        mem.bank.to_string(),
+        bank_str,
     ]
 }
 
@@ -585,12 +610,12 @@ pub extern "C" fn get_memory_row(row: usize) -> RowData {
 }
 
 /// Initialize memory data for display
-fn set_memory_data(memories: Vec<Memory>) {
+fn set_memory_data(memories: Vec<Memory>, bank_names: Vec<String>) {
     // Convert all memories to CStrings and store them
     let mut all_cstrings = Vec::new();
 
     for mem in &memories {
-        let strings = memory_to_row_strings(mem);
+        let strings = memory_to_row_strings(mem, &bank_names);
         let cstrings: Vec<CString> = strings
             .into_iter()
             .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
@@ -604,6 +629,8 @@ fn set_memory_data(memories: Vec<Memory>) {
         cstrings: all_cstrings,
         current_file: None,
         is_modified: false,
+        mmap: None,
+        bank_names,
     });
 }
 
@@ -615,6 +642,8 @@ fn clear_memory_data() {
         cstrings: Vec::new(),
         current_file: None,
         is_modified: false,
+        mmap: None,
+        bank_names: (0..10).map(|i| format!("Bank {}", i)).collect(),
     });
 }
 
@@ -656,18 +685,25 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         }
     };
 
-    // Parse memories from the memmap
-    let memories = if driver_info.model == "TH-D75" || driver_info.model == "TH-D74" {
+    // Parse memories and bank names from the memmap
+    let (memories, bank_names) = if driver_info.model == "TH-D75" || driver_info.model == "TH-D74" {
         use crate::drivers::thd75::THD75Radio;
         let mut radio = THD75Radio::new();
-        radio.mmap = Some(mmap);
-        match radio.get_memories() {
+        radio.mmap = Some(mmap.clone());
+
+        let mems = match radio.get_memories() {
             Ok(mems) => mems,
             Err(e) => {
                 let err_msg = format!("Failed to parse memories: {}", e);
                 return CString::new(err_msg).unwrap().into_raw();
             }
-        }
+        };
+
+        let names = radio.get_bank_names().unwrap_or_else(|_| {
+            (0..10).map(|i| format!("Bank {}", i)).collect()
+        });
+
+        (mems, names)
     } else {
         let err_msg = format!("Unsupported radio model: {}", driver_info.model);
         return CString::new(err_msg).unwrap().into_raw();
@@ -679,7 +715,7 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
     // Convert to CStrings
     let mut all_cstrings = Vec::new();
     for mem in &non_empty_memories {
-        let strings = memory_to_row_strings(mem);
+        let strings = memory_to_row_strings(mem, &bank_names);
         let cstrings: Vec<CString> = strings
             .into_iter()
             .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
@@ -694,6 +730,8 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         cstrings: all_cstrings,
         current_file: Some(path),
         is_modified: false,
+        mmap: Some(mmap),
+        bank_names,
     });
 
     // Return NULL to indicate success
@@ -918,6 +956,52 @@ pub extern "C" fn get_ctcss_tones() -> *const c_char {
     }
 }
 
+/// FFI: Get bank names (comma-separated)
+/// Returns bank names from loaded memory map, or default names if no data loaded
+#[no_mangle]
+pub extern "C" fn get_bank_names() -> *const c_char {
+    static mut BANK_NAMES_BUF: Option<CString> = None;
+
+    let data = MEMORY_DATA.lock().unwrap();
+
+    let bank_names = if let Some(state) = data.as_ref() {
+        // Try to read bank names from memory map
+        if let Some(ref mmap) = state.mmap {
+            use crate::drivers::thd75::THD75Radio;
+            let mut radio = THD75Radio::new();
+            radio.mmap = Some(mmap.clone());
+
+            match radio.get_bank_names() {
+                Ok(names) => names.join(","),
+                Err(_) => {
+                    // Fallback to default names on error
+                    (0..10)
+                        .map(|i| format!("Bank {}", i))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                }
+            }
+        } else {
+            // No mmap, return default names
+            (0..10)
+                .map(|i| format!("Bank {}", i))
+                .collect::<Vec<_>>()
+                .join(",")
+        }
+    } else {
+        // No data loaded, return default names
+        (0..10)
+            .map(|i| format!("Bank {}", i))
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+
+    unsafe {
+        BANK_NAMES_BUF = Some(CString::new(bank_names).unwrap());
+        BANK_NAMES_BUF.as_ref().unwrap().as_ptr()
+    }
+}
+
 /// FFI: Download memories from radio (blocking operation)
 /// Returns NULL on success, or error message on failure
 #[no_mangle]
@@ -956,10 +1040,13 @@ pub unsafe extern "C" fn download_from_radio(
             // Filter out empty memories
             let non_empty: Vec<Memory> = memories.into_iter().filter(|m| !m.empty).collect();
 
+            // Use default bank names for now (TODO: Get from radio download)
+            let bank_names: Vec<String> = (0..10).map(|i| format!("Bank {}", i)).collect();
+
             // Convert to CStrings
             let mut all_cstrings = Vec::new();
             for mem in &non_empty {
-                let strings = memory_to_row_strings(mem);
+                let strings = memory_to_row_strings(mem, &bank_names);
                 let cstrings: Vec<CString> = strings
                     .into_iter()
                     .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
@@ -974,6 +1061,8 @@ pub unsafe extern "C" fn download_from_radio(
                 cstrings: all_cstrings,
                 current_file: None,
                 is_modified: false,
+                mmap: None, // TODO: Get mmap from radio download
+                bank_names,
             });
 
             // Return NULL to indicate success
@@ -1104,10 +1193,13 @@ pub extern "C" fn get_download_result() -> *const c_char {
             // Filter out empty memories
             let non_empty: Vec<Memory> = memories.into_iter().filter(|m| !m.empty).collect();
 
+            // Use default bank names for now (TODO: Get from radio download)
+            let bank_names: Vec<String> = (0..10).map(|i| format!("Bank {}", i)).collect();
+
             // Convert to CStrings
             let mut all_cstrings = Vec::new();
             for mem in &non_empty {
-                let strings = memory_to_row_strings(mem);
+                let strings = memory_to_row_strings(mem, &bank_names);
                 let cstrings: Vec<CString> = strings
                     .into_iter()
                     .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
@@ -1122,6 +1214,8 @@ pub extern "C" fn get_download_result() -> *const c_char {
                 cstrings: all_cstrings,
                 current_file: None,
                 is_modified: false,
+                mmap: None, // TODO: Get mmap from radio download
+                bank_names,
             });
 
             // Return NULL to indicate success
@@ -1151,6 +1245,7 @@ pub unsafe extern "C" fn update_memory(
     tmode: *const c_char,
     rtone: f32,
     ctone: f32,
+    bank: u8,
 ) -> *const c_char {
     let mut data = MEMORY_DATA.lock().unwrap();
     let state = match data.as_mut() {
@@ -1178,9 +1273,11 @@ pub unsafe extern "C" fn update_memory(
     mem.tmode = tmode_str;
     mem.rtone = rtone;
     mem.ctone = ctone;
+    mem.bank = bank;
 
     // Regenerate CStrings for this row
-    let strings = memory_to_row_strings(mem);
+    let bank_names = &state.bank_names;
+    let strings = memory_to_row_strings(mem, bank_names);
     let cstrings: Vec<CString> = strings
         .into_iter()
         .map(|s| CString::new(s).unwrap_or_else(|_| CString::new("").unwrap()))
@@ -1247,7 +1344,8 @@ pub fn run_qt_app() -> i32 {
 
     // Create and store test memories
     let test_memories = create_test_memories();
-    set_memory_data(test_memories);
+    let default_bank_names: Vec<String> = (0..10).map(|i| format!("Bank {}", i)).collect();
+    set_memory_data(test_memories, default_bank_names);
 
     // Create Qt application
     let mut argc = 0;

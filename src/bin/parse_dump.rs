@@ -165,6 +165,7 @@ fn print_memory(mem: &chirp_rs::core::Memory) {
         }
     );
     println!("  Tuning Step:  {} kHz", mem.tuning_step);
+    println!("  Bank:         {}", mem.bank);
     println!();
 }
 

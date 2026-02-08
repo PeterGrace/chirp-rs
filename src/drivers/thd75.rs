@@ -21,7 +21,7 @@ const D74_FILE_HEADER: &[u8] = b"MCP-D74\xFFV1.03\xFF\xFF\xFFTH-D74\xFF\xFF\xFF\
 const FLAGS_OFFSET: usize = 0x2000;
 const MEMORY_OFFSET: usize = 0x4000;
 const NAMES_OFFSET: usize = 0x10000;
-const GROUP_NAME_OFFSET: usize = 1152;
+const GROUP_NAME_OFFSET: usize = 0x14800; // Bank/group names (16 bytes each)
 
 /// Number of memories
 const NUM_MEMORIES: u32 = 1200;
@@ -263,6 +263,38 @@ impl THD75Radio {
             vendor: "Kenwood".to_string(),
             model: "TH-D75".to_string(),
         }
+    }
+
+    /// Read bank/group names from memory map
+    /// Returns vector of 10 bank names (16 bytes each, null-terminated)
+    pub fn get_bank_names(&self) -> RadioResult<Vec<String>> {
+        let mmap = self
+            .mmap
+            .as_ref()
+            .ok_or_else(|| RadioError::Radio("Memory map not loaded".to_string()))?;
+
+        let mut names = Vec::with_capacity(10);
+        for i in 0..10 {
+            let offset = GROUP_NAME_OFFSET + (i * 16);
+            let bytes = mmap
+                .get(offset, Some(16))
+                .map_err(|e| RadioError::Radio(format!("Failed to read bank name {}: {}", i, e)))?;
+
+            // Convert to string, stopping at first null byte
+            let name = bytes
+                .iter()
+                .take_while(|&&b| b != 0)
+                .map(|&b| b as char)
+                .collect::<String>();
+
+            names.push(if name.is_empty() {
+                format!("Bank {}", i)
+            } else {
+                name
+            });
+        }
+
+        Ok(names)
     }
 
     /// Get all non-empty memories from the radio
