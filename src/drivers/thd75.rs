@@ -1029,6 +1029,12 @@ impl CloneModeRadio for THD75Radio {
         port.set_baud_rate(57600)
             .map_err(|e| RadioError::Serial(format!("Failed to change baud rate: {}", e)))?;
 
+        // Restore DTR/RTS after baud rate change (Windows may reset these)
+        port.set_dtr(true)
+            .map_err(|e| RadioError::Serial(format!("Failed to set DTR: {}", e)))?;
+        port.set_rts(false)
+            .map_err(|e| RadioError::Serial(format!("Failed to set RTS: {}", e)))?;
+
         // Brief pause for both PC and radio to stabilize at new baud rate
         tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -1072,12 +1078,20 @@ impl CloneModeRadio for THD75Radio {
 
         // Switch back to 9600 baud after exiting programming mode
         // The radio returns to 9600 baud when exiting programming mode
+        // Note: This is optional cleanup - the download is already complete
         tracing::debug!("Switching back to 9600 baud");
-        port.set_baud_rate(9600)
-            .map_err(|e| RadioError::Serial(format!("Failed to change baud rate: {}", e)))?;
+        if let Err(e) = port.set_baud_rate(9600) {
+            // Don't fail the download if baud rate change fails (Windows issue)
+            // The port will be closed soon anyway
+            tracing::warn!("Failed to change baud rate back to 9600: {} (ignoring, download complete)", e);
+        } else {
+            // Only restore DTR/RTS if baud rate change succeeded
+            port.set_dtr(true).ok();
+            port.set_rts(false).ok();
 
-        // Longer pause for baud rate change and radio to fully exit programming mode
-        tokio::time::sleep(Duration::from_millis(500)).await;
+            // Longer pause for baud rate change and radio to fully exit programming mode
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
 
         // Clear any stale data from the transition
         port.clear_all().ok();
@@ -1107,6 +1121,12 @@ impl CloneModeRadio for THD75Radio {
 
         port.set_baud_rate(57600)
             .map_err(|e| RadioError::Serial(format!("Failed to change baud rate: {}", e)))?;
+
+        // Restore DTR/RTS after baud rate change (Windows may reset these)
+        port.set_dtr(true)
+            .map_err(|e| RadioError::Serial(format!("Failed to set DTR: {}", e)))?;
+        port.set_rts(false)
+            .map_err(|e| RadioError::Serial(format!("Failed to set RTS: {}", e)))?;
 
         // Brief pause for both PC and radio to stabilize at new baud rate
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -1150,12 +1170,20 @@ impl CloneModeRadio for THD75Radio {
 
         // Switch back to 9600 baud after exiting programming mode
         // The radio returns to 9600 baud when exiting programming mode
+        // Note: This is optional cleanup - the upload is already complete
         tracing::debug!("Switching back to 9600 baud");
-        port.set_baud_rate(9600)
-            .map_err(|e| RadioError::Serial(format!("Failed to change baud rate: {}", e)))?;
+        if let Err(e) = port.set_baud_rate(9600) {
+            // Don't fail the upload if baud rate change fails (Windows issue)
+            // The port will be closed soon anyway
+            tracing::warn!("Failed to change baud rate back to 9600: {} (ignoring, upload complete)", e);
+        } else {
+            // Only restore DTR/RTS if baud rate change succeeded
+            port.set_dtr(true).ok();
+            port.set_rts(false).ok();
 
-        // Longer pause for baud rate change and radio to fully exit programming mode
-        tokio::time::sleep(Duration::from_millis(500)).await;
+            // Longer pause for baud rate change and radio to fully exit programming mode
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
 
         // Clear any stale data from the transition
         port.clear_all().ok();

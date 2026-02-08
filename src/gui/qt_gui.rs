@@ -104,12 +104,23 @@ cpp! {{
         size_t get_band_memory_count(uint8_t band_num);
         RowData get_memory_by_band_row(uint8_t band_num, size_t row);
         intptr_t get_global_index_from_band_row(uint8_t band_num, size_t row);
+
+        // Multi-bank/group support
+        bool has_bank_organization();
+        size_t get_bank_count();
+        uint8_t get_bank_number_by_index(size_t index);
+        const char* get_bank_name_by_number(uint8_t bank_num);
+        size_t get_bank_memory_count(uint8_t bank_num);
+        RowData get_memory_by_bank_row(uint8_t bank_num, size_t row);
+        intptr_t get_global_index_from_bank_row(uint8_t bank_num, size_t row);
     }
 
     // Forward declarations for helper refresh functions
     void refreshTable(QTableWidget* table);
     void refreshTreeWithBands(QTreeWidget* tree);
     void refreshTableForBand(QTableWidget* table, uint8_t band_num);
+    void refreshTreeWithBanks(QTreeWidget* tree);
+    void refreshTableForBank(QTableWidget* table, uint8_t bank_num);
 
     // Helper function to refresh whichever view is currently visible
     // Used by dialogs that don't have direct access to both widgets
@@ -125,23 +136,39 @@ cpp! {{
                 uint8_t band_num = firstItem->data(0, Qt::UserRole).toUInt();
                 refreshTableForBand(table, band_num);
             }
+        } else if (has_bank_organization()) {
+            // Radio with banks/groups: show tree and table in split view
+            tree->show();
+            table->show();
+            refreshTreeWithBanks(tree);
+            // Table will be refreshed via tree selection (defaults to "All Memories")
         } else {
-            // Single-band radio: hide tree, show table full width
+            // Single-band, single-bank radio: hide tree, show table full width
             tree->hide();
             table->show();
             refreshTable(table);
         }
     }
 
-    // Helper function to refresh just the current band's table
+    // Helper function to refresh just the current band/bank's table
     // Used after edit/paste/cut/clear operations to avoid resetting tree selection
     void refreshCurrentBandTable(QTableWidget* table, QTreeWidget* tree) {
         if (has_band_organization() && tree->currentItem()) {
             // Multi-band mode: refresh table for currently selected band
             uint8_t band_num = tree->currentItem()->data(0, Qt::UserRole).toUInt();
             refreshTableForBand(table, band_num);
+        } else if (has_bank_organization() && tree->currentItem()) {
+            // Bank/group mode: refresh table for currently selected bank
+            bool is_bank_filter = tree->currentItem()->data(0, Qt::UserRole + 1).toBool();
+            if (is_bank_filter) {
+                uint8_t bank_num = tree->currentItem()->data(0, Qt::UserRole).toUInt();
+                refreshTableForBank(table, bank_num);
+            } else {
+                // "All Memories" selected
+                refreshTable(table);
+            }
         } else {
-            // Single-band mode: refresh entire table
+            // Single-band, single-bank mode: refresh entire table
             refreshTable(table);
         }
     }
@@ -165,7 +192,7 @@ cpp! {{
             table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
             table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
             table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
-            table->setItem(row, 12, new QTableWidgetItem(QString::fromUtf8(data.bank)));
+            // Bank column removed - now shown in tree view instead
         }
 
         // Force table to update display
@@ -227,7 +254,76 @@ cpp! {{
             table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
             table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
             table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
-            table->setItem(row, 12, new QTableWidgetItem(QString::fromUtf8(data.bank)));
+            // Bank column removed - now shown in tree view instead
+        }
+
+        // Force table to update display
+        table->viewport()->update();
+    }
+
+    // Helper function to refresh tree with bank/group names
+    void refreshTreeWithBanks(QTreeWidget* tree) {
+        tree->clear();
+
+        size_t bank_count = get_bank_count();
+        if (bank_count == 0) {
+            // Fallback: no banks, shouldn't happen but handle gracefully
+            return;
+        }
+
+        // Create an "All Memories" item at the top
+        QTreeWidgetItem* all_item = new QTreeWidgetItem(tree);
+        all_item->setText(0, QString("All Memories (%1 memories)").arg(get_memory_count()));
+        all_item->setData(0, Qt::UserRole, 255);  // Special value for "all"
+        all_item->setData(0, Qt::UserRole + 1, false);  // Not a bank filter
+
+        // Create an item for each bank/group
+        for (size_t bank_idx = 0; bank_idx < bank_count; ++bank_idx) {
+            uint8_t bank_num = get_bank_number_by_index(bank_idx);
+            const char* bank_name_cstr = get_bank_name_by_number(bank_num);
+            QString bank_name = QString::fromUtf8(bank_name_cstr);
+            free_error_message(bank_name_cstr);
+
+            size_t mem_count = get_bank_memory_count(bank_num);
+
+            // Create item with bank name and memory count
+            QTreeWidgetItem* bank_item = new QTreeWidgetItem(tree);
+            bank_item->setText(0, QString("%1 (%2 memories)").arg(bank_name).arg(mem_count));
+
+            // Store bank number in item data for later retrieval
+            bank_item->setData(0, Qt::UserRole, bank_num);
+            bank_item->setData(0, Qt::UserRole + 1, true);  // Is a bank filter
+        }
+
+        // Select "All Memories" by default
+        if (tree->topLevelItemCount() > 0) {
+            tree->setCurrentItem(tree->topLevelItem(0));
+        }
+
+        // Force tree to update display
+        tree->viewport()->update();
+    }
+
+    // Helper function to refresh table with memories from a specific bank
+    void refreshTableForBank(QTableWidget* table, uint8_t bank_num) {
+        size_t mem_count = get_bank_memory_count(bank_num);
+        table->setRowCount(mem_count);
+
+        for (size_t row = 0; row < mem_count; ++row) {
+            RowData data = get_memory_by_bank_row(bank_num, row);
+            table->setItem(row, 0, new QTableWidgetItem(QString::fromUtf8(data.loc)));
+            table->setItem(row, 1, new QTableWidgetItem(QString::fromUtf8(data.freq)));
+            table->setItem(row, 2, new QTableWidgetItem(QString::fromUtf8(data.name)));
+            table->setItem(row, 3, new QTableWidgetItem(QString::fromUtf8(data.duplex)));
+            table->setItem(row, 4, new QTableWidgetItem(QString::fromUtf8(data.offset)));
+            table->setItem(row, 5, new QTableWidgetItem(QString::fromUtf8(data.mode)));
+            table->setItem(row, 6, new QTableWidgetItem(QString::fromUtf8(data.tmode)));
+            table->setItem(row, 7, new QTableWidgetItem(QString::fromUtf8(data.tone)));
+            table->setItem(row, 8, new QTableWidgetItem(QString::fromUtf8(data.power)));
+            table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
+            table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
+            table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
+            // Note: Bank column removed
         }
 
         // Force table to update display
@@ -814,6 +910,8 @@ struct AppState {
     band_groups: std::collections::HashMap<u8, Vec<usize>>,
     /// Band display names (band_num -> display name like "VHF (144 MHz)")
     band_display_names: std::collections::HashMap<u8, String>,
+    /// Bank/Group organization for radios with banks/groups (bank_num -> memory indices)
+    bank_groups: std::collections::HashMap<u8, Vec<usize>>,
 }
 
 /// Global storage for memory data and C strings
@@ -1118,6 +1216,134 @@ pub extern "C" fn get_global_index_from_band_row(band_num: u8, row: usize) -> is
     -1
 }
 
+/// FFI: Check if memories have bank/group organization
+/// Returns true if there are memories organized into banks/groups
+#[no_mangle]
+pub extern "C" fn has_bank_organization() -> bool {
+    let data = MEMORY_DATA.lock().unwrap();
+    data.as_ref()
+        .map(|state| !state.bank_groups.is_empty() && state.bank_groups.len() > 1)
+        .unwrap_or(false)
+}
+
+/// FFI: Get the number of unique banks/groups
+#[no_mangle]
+pub extern "C" fn get_bank_count() -> usize {
+    let data = MEMORY_DATA.lock().unwrap();
+    data.as_ref()
+        .map(|state| state.bank_groups.len())
+        .unwrap_or(0)
+}
+
+/// FFI: Get bank number by index (for iteration)
+/// Returns 0 if index is out of bounds
+#[no_mangle]
+pub extern "C" fn get_bank_number_by_index(index: usize) -> u8 {
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        let mut banks: Vec<u8> = state.bank_groups.keys().copied().collect();
+        banks.sort();
+        if index < banks.len() {
+            return banks[index];
+        }
+    }
+    0
+}
+
+/// FFI: Get bank name by bank number
+/// Returns allocated C string that must be freed with free_error_message()
+#[no_mangle]
+pub unsafe extern "C" fn get_bank_name_by_number(bank_num: u8) -> *const c_char {
+    let data = MEMORY_DATA.lock().unwrap();
+
+    let bank_name = if let Some(state) = data.as_ref() {
+        if bank_num < state.bank_names.len() as u8 {
+            state.bank_names[bank_num as usize].clone()
+        } else {
+            format!("Bank {}", bank_num)
+        }
+    } else {
+        format!("Bank {}", bank_num)
+    };
+
+    CString::new(bank_name).unwrap().into_raw()
+}
+
+/// FFI: Get number of memories in a specific bank
+#[no_mangle]
+pub extern "C" fn get_bank_memory_count(bank_num: u8) -> usize {
+    let data = MEMORY_DATA.lock().unwrap();
+    data.as_ref()
+        .and_then(|state| state.bank_groups.get(&bank_num))
+        .map(|indices| indices.len())
+        .unwrap_or(0)
+}
+
+/// FFI: Get memory data by bank and row within that bank
+#[no_mangle]
+pub extern "C" fn get_memory_by_bank_row(bank_num: u8, row: usize) -> RowData {
+    let data = MEMORY_DATA.lock().unwrap();
+
+    if let Some(state) = data.as_ref() {
+        if let Some(indices) = state.bank_groups.get(&bank_num) {
+            if row < indices.len() {
+                let mem_idx = indices[row];
+                if mem_idx < state.cstrings.len() {
+                    let row_cstrings = &state.cstrings[mem_idx];
+                    return RowData {
+                        loc: row_cstrings[0].as_ptr(),
+                        freq: row_cstrings[1].as_ptr(),
+                        name: row_cstrings[2].as_ptr(),
+                        duplex: row_cstrings[3].as_ptr(),
+                        offset: row_cstrings[4].as_ptr(),
+                        mode: row_cstrings[5].as_ptr(),
+                        tmode: row_cstrings[6].as_ptr(),
+                        tone: row_cstrings[7].as_ptr(),
+                        power: row_cstrings[8].as_ptr(),
+                        urcall: row_cstrings[9].as_ptr(),
+                        rpt1: row_cstrings[10].as_ptr(),
+                        rpt2: row_cstrings[11].as_ptr(),
+                        bank: row_cstrings[12].as_ptr(),
+                    };
+                }
+            }
+        }
+    }
+
+    // Return empty row if not found
+    static EMPTY: &[u8] = b"\0";
+    RowData {
+        loc: EMPTY.as_ptr() as *const c_char,
+        freq: EMPTY.as_ptr() as *const c_char,
+        name: EMPTY.as_ptr() as *const c_char,
+        duplex: EMPTY.as_ptr() as *const c_char,
+        offset: EMPTY.as_ptr() as *const c_char,
+        mode: EMPTY.as_ptr() as *const c_char,
+        tmode: EMPTY.as_ptr() as *const c_char,
+        tone: EMPTY.as_ptr() as *const c_char,
+        power: EMPTY.as_ptr() as *const c_char,
+        urcall: EMPTY.as_ptr() as *const c_char,
+        rpt1: EMPTY.as_ptr() as *const c_char,
+        rpt2: EMPTY.as_ptr() as *const c_char,
+        bank: EMPTY.as_ptr() as *const c_char,
+    }
+}
+
+/// FFI: Convert bank+row to global memory index
+/// Returns the global index, or -1 if invalid
+#[no_mangle]
+pub extern "C" fn get_global_index_from_bank_row(bank_num: u8, row: usize) -> isize {
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        if let Some(indices) = state.bank_groups.get(&bank_num) {
+            if row < indices.len() {
+                return indices[row] as isize;
+            }
+        }
+    }
+    -1
+}
+
 /// Initialize memory data for display
 /// Build band groups and display names from memories
 fn build_band_info(memories: &[Memory]) -> (std::collections::HashMap<u8, Vec<usize>>, std::collections::HashMap<u8, String>) {
@@ -1163,6 +1389,9 @@ fn set_memory_data(memories: Vec<Memory>, bank_names: Vec<String>) {
     // Build band organization
     let (band_groups, band_display_names) = build_band_info(&memories);
 
+    // Build bank/group organization
+    let bank_groups = build_bank_info(&memories);
+
     let mut data = MEMORY_DATA.lock().unwrap();
     *data = Some(AppState {
         memories,
@@ -1174,7 +1403,23 @@ fn set_memory_data(memories: Vec<Memory>, bank_names: Vec<String>) {
         clipboard: None,
         band_groups,
         band_display_names,
+        bank_groups,
     });
+}
+
+/// Build bank/group information from memories
+/// Returns a HashMap mapping bank numbers to vectors of memory indices
+fn build_bank_info(memories: &[Memory]) -> std::collections::HashMap<u8, Vec<usize>> {
+    let mut bank_groups = std::collections::HashMap::new();
+
+    // Group memories by bank number (skip empty memories)
+    for (idx, mem) in memories.iter().enumerate() {
+        if !mem.empty {
+            bank_groups.entry(mem.bank).or_insert_with(Vec::new).push(idx);
+        }
+    }
+
+    bank_groups
 }
 
 /// Clear all memory data
@@ -1190,6 +1435,7 @@ fn clear_memory_data() {
         clipboard: None,
         band_groups: std::collections::HashMap::new(),
         band_display_names: std::collections::HashMap::new(),
+        bank_groups: std::collections::HashMap::new(),
     });
 }
 
@@ -1282,6 +1528,9 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
     // Build band organization
     let (band_groups, band_display_names) = build_band_info(&memories);
 
+    // Build bank/group organization
+    let bank_groups = build_bank_info(&memories);
+
     // Update global state
     let mut data = MEMORY_DATA.lock().unwrap();
     *data = Some(AppState {
@@ -1294,6 +1543,7 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         clipboard: None,
         band_groups,
         band_display_names,
+        bank_groups,
     });
 
     // Return NULL to indicate success
@@ -1491,6 +1741,9 @@ pub unsafe extern "C" fn import_from_csv(path: *const c_char) -> *const c_char {
 
     tracing::info!("CSV imported successfully: {} memories", memories.len());
 
+    // Build bank/group organization
+    let bank_groups = build_bank_info(&memories);
+
     // Update global state
     let mut data = MEMORY_DATA.lock().unwrap();
     *data = Some(AppState {
@@ -1503,6 +1756,7 @@ pub unsafe extern "C" fn import_from_csv(path: *const c_char) -> *const c_char {
         clipboard: None,
         band_groups,
         band_display_names,
+        bank_groups,
     });
 
     // Return NULL to indicate success
@@ -1776,6 +2030,9 @@ pub unsafe extern "C" fn download_from_radio(
             // Build band organization
             let (band_groups, band_display_names) = build_band_info(&memories);
 
+            // Build bank/group organization
+            let bank_groups_map = build_bank_info(&memories);
+
             // Update global state
             let mut data = MEMORY_DATA.lock().unwrap();
             *data = Some(AppState {
@@ -1788,6 +2045,7 @@ pub unsafe extern "C" fn download_from_radio(
                 clipboard: None,
                 band_groups,
                 band_display_names,
+                bank_groups: bank_groups_map,
             });
 
             // Return NULL to indicate success
@@ -1940,6 +2198,9 @@ pub extern "C" fn get_download_result() -> *const c_char {
             // Build band organization
             let (band_groups, band_display_names) = build_band_info(&memories);
 
+            // Build bank/group organization
+            let bank_groups_map = build_bank_info(&memories);
+
             // Update global state
             let mut data = MEMORY_DATA.lock().unwrap();
             *data = Some(AppState {
@@ -1952,6 +2213,7 @@ pub extern "C" fn get_download_result() -> *const c_char {
                 clipboard: None,
                 band_groups,
                 band_display_names,
+                bank_groups: bank_groups_map,
             });
 
             // Return NULL to indicate success
@@ -2402,11 +2664,11 @@ pub fn run_qt_app() -> i32 {
 
             // Create table widget for memory display (right side)
             QTableWidget* table = new QTableWidget(splitter);
-            table->setColumnCount(13);
+            table->setColumnCount(12);  // Removed "Bank" column
             QStringList headers;
             headers << "Loc" << "Frequency" << "Name" << "Duplex" << "Offset"
                     << "Mode" << "ToneMode" << "Tone" << "Power"
-                    << "URCALL" << "RPT1" << "RPT2" << "Bank";
+                    << "URCALL" << "RPT1" << "RPT2";
             table->setHorizontalHeaderLabels(headers);
             table->horizontalHeader()->setStretchLastSection(true);
             table->setAlternatingRowColors(true);
@@ -2427,7 +2689,6 @@ pub fn run_qt_app() -> i32 {
             table->setColumnWidth(9, 100);  // URCALL
             table->setColumnWidth(10, 100); // RPT1
             table->setColumnWidth(11, 100); // RPT2
-            table->setColumnWidth(12, 50);  // Bank
 
             // Add splitter to layout
             layout->addWidget(splitter);
@@ -2438,20 +2699,37 @@ pub fn run_qt_app() -> i32 {
             QObject::connect(tree, &QTreeWidget::currentItemChanged,
                 [=](QTreeWidgetItem* current, QTreeWidgetItem* previous) {
                     if (current) {
-                        uint8_t band_num = current->data(0, Qt::UserRole).toUInt();
-                        refreshTableForBand(table, band_num);
+                        // Check if this is a band or bank filter
+                        bool is_bank_filter = current->data(0, Qt::UserRole + 1).toBool();
+                        uint8_t num = current->data(0, Qt::UserRole).toUInt();
+
+                        if (is_bank_filter && num == 255) {
+                            // "All Memories" selected
+                            refreshTable(table);
+                        } else if (is_bank_filter) {
+                            // Bank/group selected
+                            refreshTableForBank(table, num);
+                        } else {
+                            // Band selected (or old-style tree item without bank flag)
+                            refreshTableForBand(table, num);
+                        }
                     }
                 });
 
-            // Unified refresh function that checks for band organization
+            // Unified refresh function that checks for band/bank organization
             auto refreshMemoryView = [=]() {
                 if (has_band_organization()) {
                     // Multi-band radio: show tree and table in split view
                     tree->show();
                     refreshTreeWithBands(tree);
                     // Table will be updated via tree selection signal
+                } else if (has_bank_organization()) {
+                    // Radio with banks/groups: show tree and table in split view
+                    tree->show();
+                    refreshTreeWithBanks(tree);
+                    // Table will be updated via tree selection signal (defaults to "All")
                 } else {
-                    // Single-band radio: hide tree, show full-width table
+                    // Single-band, single-bank radio: hide tree, show full-width table
                     tree->hide();
                     refreshTable(table);
                 }
