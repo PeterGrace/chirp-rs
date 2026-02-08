@@ -1,333 +1,378 @@
-# GUI Framework: iced
+# GUI Framework: Qt (via qmetaobject-rs)
 
-## Decision: Using iced instead of egui
+## Decision: Using Qt instead of iced/egui
 
-### Why iced?
+### Why Qt?
 
-**iced** is a cross-platform GUI library for Rust inspired by Elm. It provides:
+**Qt** is a mature, cross-platform GUI framework with excellent Rust bindings via `qmetaobject-rs`. It provides:
 
-1. **Elm Architecture (MVU Pattern)**
-   - Model: Application state
-   - View: Pure function that renders the model
-   - Update: Handles messages and updates the model
-   - Clean separation of concerns
+1. **Native Look and Feel**
+   - Uses platform-native widgets on Windows/Linux/macOS
+   - Familiar UI patterns for users
+   - Proper theme integration (dark mode, etc.)
+   - Better accessibility support
 
-2. **Excellent Windows Support**
-   - Native rendering via wgpu
-   - Good performance
-   - Proper DPI scaling
+2. **Excellent Table Widget**
+   - `QTableWidget` is battle-tested and feature-complete
+   - Built-in sorting, scrolling, cell editing
+   - Row/column selection
+   - Excellent keyboard navigation
+   - Perfect for memory grid display
 
-3. **Built-in Widgets**
-   - `iced::widget::scrollable` - Scrollable containers
-   - `iced::widget::column/row` - Layout primitives
-   - `iced::widget::text_input` - Text editing
-   - `iced::widget::button` - Buttons
-   - `iced::widget::pick_list` - Dropdowns (perfect for radio/port selection)
-   - `iced::widget::progress_bar` - Progress indicators
-   - Custom widgets can be built
+3. **Built-in Dialogs**
+   - Native file dialogs (`QFileDialog`)
+   - Message boxes (`QMessageBox`)
+   - Input dialogs
+   - Custom modal dialogs
+   - Better UX than custom implementations
 
-4. **Table/Grid Support**
-   - Can build custom table widget
-   - `iced_table` crate available
-   - Community has examples of data grids
+4. **Mature Ecosystem**
+   - Decades of development
+   - Extensive documentation
+   - Known best practices
+   - Large community
 
-5. **Async Support**
-   - `Command` system for async operations
-   - Natural integration with tokio for serial I/O
-   - Can run async tasks and update UI via messages
+5. **Rust Bindings**
+   - `qmetaobject` crate provides safe Rust API
+   - `cpp!` macro for inline C++ when needed
+   - Good FFI boundary management
+   - Active maintenance
 
 6. **Single Binary Distribution**
-   - Easy to package for Windows
-   - No external GUI dependencies
+   - Can statically link Qt (with proper licensing)
+   - Or distribute Qt DLLs alongside
+   - Smaller binary than Electron alternatives
 
-### iced vs egui Comparison
+### Qt vs iced/egui Comparison
 
-| Feature | iced | egui |
-|---------|------|------|
-| Architecture | Elm/MVU (structured) | Immediate mode (flexible) |
-| Async | Built-in Command system | Manual integration |
-| State Management | Explicit Model | Implicit in app |
-| Learning Curve | Medium (MVU pattern) | Easy (imperative) |
-| Table Widgets | Custom/iced_table | egui_extras::Table |
-| Windows Support | ✅ Excellent | ✅ Excellent |
-| Maturity | Stable | Very Stable |
-| Community | Growing | Large |
+| Feature | Qt | iced | egui |
+|---------|-----|------|------|
+| **Native Look** | ✅ Native widgets | ⚠️ Custom rendering | ⚠️ Custom rendering |
+| **Table Widget** | ✅ QTableWidget (excellent) | ⬜ Custom implementation | ⬜ egui_extras::Table |
+| **File Dialogs** | ✅ Native dialogs | ⚠️ rfd (separate crate) | ⚠️ rfd (separate crate) |
+| **Maturity** | ✅ Very mature | ⚠️ Growing | ✅ Mature |
+| **Learning Curve** | Medium (Qt API) | Medium (MVU pattern) | Easy (immediate mode) |
+| **Async Support** | Manual (via tokio) | Built-in Commands | Manual integration |
+| **Windows Support** | ✅ Excellent | ✅ Good | ✅ Good |
+| **Binary Size** | Large (with Qt) | Medium | Small |
+| **Rust Integration** | Good (qmetaobject) | Native Rust | Native Rust |
+| **Documentation** | ✅ Extensive | Growing | ✅ Good |
 
-### Implementation Approach
+### Architecture
 
-#### 1. Application Structure
+#### Rust-Qt Integration
 
 ```rust
-use iced::{Application, Command, Element, Settings};
-
-struct ChirpApp {
-    // Model
-    memories: Vec<Memory>,
-    selected_radio: Option<String>,
-    serial_ports: Vec<String>,
-    status: String,
-    // ... other state
+// FFI boundary: Rust functions callable from C++
+#[no_mangle]
+pub extern "C" fn load_file(path: *const c_char) -> *const c_char {
+    // Rust implementation
 }
 
-#[derive(Debug, Clone)]
-enum Message {
-    // File operations
-    OpenFile,
-    SaveFile,
-    FileLoaded(Result<(MemoryMap, Metadata), String>),
+// Qt C++ side (in cpp! macro)
+cpp! {{
+    extern "C" const char* load_file(const char* path);
 
-    // Radio operations
-    DownloadFromRadio,
-    UploadToRadio,
-    RadioSelected(String),
-    PortSelected(String),
-    DownloadProgress(f32),
-    DownloadComplete(Result<MemoryMap, String>),
+    // Call from Qt slots
+    fileMenu->addAction("&Open", [=]() {
+        QString fileName = QFileDialog::getOpenFileName(...);
+        const char* error = load_file(fileName.toUtf8().constData());
+        // Handle result
+    });
+}}
+```
 
-    // Memory editing
-    MemorySelected(usize),
-    FrequencyChanged(String),
-    NameChanged(String),
-    // ... other fields
+#### Application Structure
 
-    // UI events
-    MenuAction(MenuAction),
+```
+src/gui/
+├── qt_gui.rs          # Main Qt application (1500+ lines)
+│   ├── C++ code (cpp! macros)
+│   │   ├── QApplication setup
+│   │   ├── Menu bar creation
+│   │   ├── Table widget setup
+│   │   └── Event handlers (slots)
+│   └── Rust FFI functions
+│       ├── Memory data management
+│       ├── File operations
+│       ├── Radio operations
+│       └── Data conversion
+└── radio_ops.rs       # Async radio operations
+    ├── download_from_radio()
+    ├── upload_to_radio()
+    └── Progress callbacks
+```
+
+#### Data Flow
+
+```
+User Action (Qt)
+    ↓
+Qt Signal/Slot
+    ↓
+FFI Call (extern "C" fn)
+    ↓
+Rust Implementation
+    ↓  (async operations via tokio)
+Radio Driver / File Format Handler
+    ↓
+Rust Result
+    ↓
+FFI Return (success/error)
+    ↓
+Qt UI Update (QMessageBox, table refresh, etc.)
+```
+
+### Key Components
+
+#### 1. Table Display (`QTableWidget`)
+
+**Features:**
+- 13 columns: Location, Frequency, Name, Duplex, Offset, Mode, ToneMode, Tone, Power, URCALL, RPT1, RPT2, Bank
+- Alternating row colors for readability
+- Sortable columns
+- Row selection
+- Custom column widths
+- Conditional display (D-STAR fields only for DV memories)
+
+**Data Binding:**
+```rust
+#[repr(C)]
+pub struct RowData {
+    loc: *const c_char,
+    freq: *const c_char,
+    name: *const c_char,
+    // ... (13 fields total)
 }
 
-impl Application for ChirpApp {
-    type Message = Message;
-    type Executor = iced::executor::Default;
-    type Flags = ();
-    type Theme = iced::Theme;
-
-    fn new(_flags: Self::Flags) -> (Self, Command<Message>) {
-        // Initialize app state
-        (Self::default(), Command::none())
-    }
-
-    fn title(&self) -> String {
-        String::from("CHIRP-RS")
-    }
-
-    fn update(&mut self, message: Message) -> Command<Message> {
-        match message {
-            Message::OpenFile => {
-                // Spawn async file picker
-                Command::perform(
-                    pick_file(),
-                    Message::FileLoaded
-                )
-            }
-            Message::FileLoaded(Ok((mmap, metadata))) => {
-                // Load memories from mmap
-                // Update UI state
-                Command::none()
-            }
-            Message::DownloadFromRadio => {
-                // Spawn async download task
-                Command::perform(
-                    download_from_radio(self.selected_radio.clone()),
-                    Message::DownloadComplete
-                )
-            }
-            // ... handle other messages
-            _ => Command::none()
-        }
-    }
-
-    fn view(&self) -> Element<Message> {
-        // Build UI from current state
-        let menu = menu_bar();
-        let memory_grid = memory_grid_view(&self.memories);
-        let status_bar = status_bar(&self.status);
-
-        column![menu, memory_grid, status_bar].into()
-    }
+#[no_mangle]
+pub extern "C" fn get_memory_row(row: usize) -> RowData {
+    // Convert Memory struct to C-compatible strings
 }
 ```
 
-#### 2. Memory Grid Widget
+#### 2. File Operations
 
-Options:
-1. **Custom Table Widget**: Build our own using `column` + `row` + `scrollable`
-2. **iced_table crate**: Community-maintained table widget
-3. **iced_aw (Awesome Widgets)**: Additional widget library
+**Open File:**
+- Native `QFileDialog::getOpenFileName()`
+- Filters: "CHIRP Image (*.img)"
+- Async load via FFI call
+- Error handling with `QMessageBox::critical()`
 
-For MVP, we'll start with a simple custom table:
+**Save File:**
+- `QFileDialog::getSaveFileName()` for Save As
+- Use current file path for Save
+- Encode memories to MemoryMap
+- Create metadata
+- Call `save_img()` from formats module
+- Success/error dialogs
 
+#### 3. Radio Operations
+
+**Download Dialog:**
+- Vendor selection (`QComboBox`)
+- Model selection (filtered by vendor)
+- Port selection (auto-detected)
+- Progress bar with current/total/message
+- Cancel button
+- Async execution with progress callbacks
+
+**Upload Dialog:**
+- Port selection
+- Progress bar
+- Confirmation before upload
+- Async execution
+
+#### 4. Memory Management
+
+**Global State:**
 ```rust
-fn memory_grid_view(memories: &[Memory]) -> Element<Message> {
-    let header = row![
-        text("Num").width(50),
-        text("Frequency").width(100),
-        text("Name").width(150),
-        text("Duplex").width(60),
-        text("Offset").width(100),
-        text("Mode").width(60),
-        // ... more columns
-    ];
-
-    let rows = memories.iter().enumerate().map(|(idx, mem)| {
-        memory_row(idx, mem)
-    }).collect();
-
-    scrollable(
-        column![header]
-            .push(rows)
-    ).into()
+struct AppState {
+    memories: Vec<Memory>,           // All loaded memories
+    cstrings: Vec<Vec<CString>>,    // Cached C strings for display
+    current_file: Option<PathBuf>,   // Current file path
+    is_modified: bool,               // Has data changed?
 }
 
-fn memory_row(idx: usize, mem: &Memory) -> Element<Message> {
-    row![
-        text(mem.number).width(50),
-        text(Memory::format_freq(mem.freq)).width(100),
-        text_input("", &mem.name)
-            .on_input(move |s| Message::NameChanged(idx, s))
-            .width(150),
-        pick_list(DUPLEXES, Some(&mem.duplex), move |d| {
-            Message::DuplexChanged(idx, d)
-        }).width(60),
-        // ... more columns
-    ].into()
-}
+static MEMORY_DATA: Mutex<Option<AppState>> = Mutex::new(None);
 ```
 
-#### 3. Async Operations
+**Thread Safety:**
+- `Mutex` for state synchronization
+- FFI calls lock mutex briefly
+- No long-running operations under lock
+- Async tasks spawn separately
 
-```rust
-async fn download_from_radio(
-    radio_name: String,
-    port: String,
-) -> Result<MemoryMap, String> {
-    // Open serial port
-    let port = serialport::new(&port, 9600)
-        .open_async()
-        .map_err(|e| e.to_string())?;
+### Building
 
-    // Get driver
-    let driver = get_driver(&radio_name)?;
-
-    // Perform download with progress updates
-    driver.sync_in(port).await
-}
-
-// In update():
-Message::DownloadFromRadio => {
-    Command::perform(
-        download_from_radio(
-            self.selected_radio.clone().unwrap(),
-            self.selected_port.clone().unwrap(),
-        ),
-        Message::DownloadComplete,
-    )
-}
-```
-
-#### 4. File Dialogs
-
-```rust
-async fn pick_file() -> Result<(MemoryMap, Metadata), String> {
-    let file = rfd::AsyncFileDialog::new()
-        .add_filter("CHIRP Image", &["img"])
-        .pick_file()
-        .await
-        .ok_or("No file selected")?;
-
-    let path = file.path();
-    load_img(path).map_err(|e| e.to_string())
-}
-```
-
-### Dependencies for Phase 7
+#### Dependencies
 
 ```toml
 [dependencies]
-iced = { version = "0.12", features = ["tokio", "advanced"] }
-rfd = "0.14"  # Native file dialogs
-# iced_table = "0.1"  # Optional if we use community table
-# iced_aw = "0.9"  # Optional for additional widgets
+qmetaobject = { version = "0.2", optional = true }
+cpp = { version = "0.5", optional = true }
+
+[build-dependencies]
+cpp_build = "0.5"
+
+[features]
+gui = ["dep:qmetaobject", "dep:cpp"]
 ```
 
-### MVP GUI Features
+#### Build Process
 
-#### Must Have:
-- [x] Memory grid (display all channels)
-- [x] Edit frequency, name, tone modes, duplex, offset, power
-- [x] File menu: New, Open, Save, Save As, Quit
-- [x] Radio menu: Download from Radio, Upload to Radio
-- [x] Download/Upload dialog with progress bar
-- [x] Radio vendor/model selection
-- [x] Serial port selection
-- [x] Basic error dialogs
+1. `build.rs` runs `cpp_build` to parse `cpp!` macros
+2. Generates C++ glue code
+3. Compiles with Qt's moc (Meta-Object Compiler)
+4. Links Qt libraries
+5. Produces binary with embedded Qt code
 
-#### Nice to Have (Post-MVP):
-- [ ] Cell editing with validation feedback
-- [ ] Keyboard navigation (arrow keys, tab)
-- [ ] Copy/paste rows
-- [ ] Undo/redo
-- [ ] Search/filter
-- [ ] Column sorting
-- [ ] Resizable columns
+#### Platform Requirements
 
-### Implementation Order (Phase 7)
+**Linux:**
+```bash
+# Debian/Ubuntu
+sudo apt install qtbase5-dev qt5-qmake build-essential
 
-1. **Basic iced app skeleton** (1-2 days)
-   - Window creation
-   - Menu bar
-   - Status bar
-   - Basic layout
+# Fedora
+sudo dnf install qt5-qtbase-devel gcc-c++
+```
 
-2. **Memory grid display** (2-3 days)
-   - Read-only table showing memories
-   - Scrolling
-   - Column headers
-   - Basic formatting
+**Windows:**
+- Install Qt 5.x from qt.io
+- Set `QTDIR` environment variable
+- Use MSVC or MinGW toolchain
 
-3. **Memory editing** (2-3 days)
-   - Text inputs for frequency, name
-   - Dropdowns for mode, duplex, tone mode
-   - Number inputs for tones, offset
-   - Validation on change
+**macOS:**
+```bash
+brew install qt@5
+```
 
-4. **File operations** (1-2 days)
-   - Open file dialog
-   - Save file dialog
-   - Load/save integration with formats module
+### Best Practices
 
-5. **Radio dialogs** (3-4 days)
-   - Download dialog
-   - Upload dialog
-   - Radio selection (vendor → model)
-   - Port selection (auto-detect)
-   - Progress bar
-   - Cancel button
+#### 1. FFI Safety
+- Always validate C pointers before dereferencing
+- Use `CStr::from_ptr()` for C strings
+- Return owned `CString` for Rust → C
+- Free error messages with `free_error_message()`
 
-6. **Error handling** (1 day)
-   - Modal error dialogs
-   - Status messages
-   - Validation errors
+#### 2. Memory Management
+- Cache `CString` conversions (they're expensive)
+- Store in `AppState.cstrings` field
+- Clear cache when data changes
+- Return pointers to cached strings
 
-7. **Integration & polish** (2-3 days)
-   - Wire everything together
-   - Test end-to-end workflows
-   - UX improvements
+#### 3. Error Handling
+- Return `*const c_char` for errors (NULL = success)
+- Descriptive error messages
+- Qt displays in `QMessageBox`
+- User-friendly language
 
-**Total Phase 7 Estimate:** 12-18 days (2-3 weeks)
+#### 4. Async Operations
+- Spawn tokio tasks for I/O
+- Use `Arc<Mutex<>>` for progress callbacks
+- Update Qt UI from main thread only
+- Handle cancellation gracefully
+
+#### 5. Table Performance
+- Update only changed rows
+- Use `setItem()` instead of recreating table
+- Disable sorting during bulk updates
+- Cache formatted strings
+
+### Testing
+
+#### Unit Tests (Rust)
+```bash
+# Test core functionality
+cargo test --lib
+```
+
+#### Integration Tests
+```bash
+# Test with real data
+cargo test --lib thd75
+```
+
+#### Manual GUI Testing
+```bash
+# Run application
+cargo run --features gui
+
+# Test checklist:
+# - Load .img file
+# - Edit memory
+# - Save file
+# - Download from radio (if connected)
+# - Upload to radio (if connected)
+```
+
+### Troubleshooting
+
+#### Build Issues
+
+**"Qt not found":**
+```bash
+# Set QTDIR
+export QTDIR=/usr/lib/qt5  # Linux
+export QTDIR=/usr/local/opt/qt@5  # macOS
+set QTDIR=C:\Qt\5.15.2\msvc2019_64  # Windows
+```
+
+**"moc not found":**
+```bash
+# Add Qt bin to PATH
+export PATH=$QTDIR/bin:$PATH
+```
+
+**`cpp!` macro errors:**
+```bash
+# Clean build
+cargo clean
+cargo build --features gui
+```
+
+#### Runtime Issues
+
+**"Cannot load library":**
+- Linux: Install `libqt5gui5`, `libqt5widgets5`
+- Windows: Copy Qt DLLs to binary directory
+- macOS: Use `macdeployqt` to bundle Qt frameworks
+
+**Crash on startup:**
+- Check Qt version (5.12+ recommended)
+- Verify platform plugins installed
+- Run with `RUST_BACKTRACE=1` for details
+
+### Future Enhancements
+
+#### Short Term
+- ⬜ In-cell editing (double-click to edit)
+- ⬜ Context menu (right-click options)
+- ⬜ Keyboard shortcuts (Ctrl+S, Ctrl+O, etc.)
+- ⬜ Toolbar with common actions
+
+#### Medium Term
+- ⬜ Multiple tabs (open multiple files)
+- ⬜ Split view (compare memories)
+- ⬜ Search/filter toolbar
+- ⬜ Memory sorting by column
+
+#### Long Term
+- ⬜ Custom themes
+- ⬜ Keyboard shortcut customization
+- ⬜ Plugin system
+- ⬜ Memory templates
 
 ### Resources
 
-- **iced docs**: https://docs.rs/iced/
-- **iced examples**: https://github.com/iced-rs/iced/tree/master/examples
-- **iced_table**: https://github.com/iced-rs/iced_table
-- **iced_aw**: https://github.com/iced-rs/iced_aw
+- **qmetaobject-rs**: https://github.com/woboq/qmetaobject-rs
+- **Qt Documentation**: https://doc.qt.io/qt-5/
+- **cpp crate**: https://github.com/mystor/rust-cpp
+- **CHIRP-RS Examples**: See `src/gui/qt_gui.rs` for working code
 
-### Advantages of iced for CHIRP
+### Conclusion
 
-1. **Type-Safe Messages**: All interactions are strongly typed
-2. **Testable**: View is a pure function, update logic is isolated
-3. **Async-Native**: Commands integrate naturally with tokio
-4. **Memory-Efficient**: Updates only what changed
-5. **Windows-Ready**: Single executable, no DLL dependencies
-6. **Maintainable**: Clear MVU pattern scales well
+Qt provides the best balance of features, maturity, and user experience for CHIRP-RS. While it requires more setup than pure-Rust solutions, the result is a professional, native-feeling application that users expect from desktop software.
 
-The iced framework will provide a clean, maintainable GUI foundation that integrates well with our async serial communication and file I/O systems.
+The `qmetaobject-rs` bindings make it practical to use Qt from Rust while maintaining safety and good performance. The FFI boundary is clean and well-defined, making it easy to maintain and extend.
