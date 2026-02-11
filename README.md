@@ -97,13 +97,13 @@ See `RADIO_DUMP_TOOL.md` for detailed documentation.
 Parse and display memories from CHIRP `.img` files or raw binary dumps:
 
 ```bash
-cargo run --bin parse-memory -- [OPTIONS] <file> [memory_number|range]
+cargo run --bin parse_memory -- [OPTIONS] <file> [memory_number|range]
 
 # Examples:
-cargo run --bin parse-memory -- radio.img                  # Show all non-empty
-cargo run --bin parse-memory -- radio.d75 40               # Show memory #40
-cargo run --bin parse-memory -- radio.img 32-50            # Show range
-cargo run --bin parse-memory -- --raw radio.img 40         # Show with raw data
+cargo run --bin parse_memory -- radio.img                  # Show all non-empty
+cargo run --bin parse_memory -- radio.d75 40               # Show memory #40
+cargo run --bin parse_memory -- radio.img 32-50            # Show range
+cargo run --bin parse_memory -- --raw radio.img 40         # Show with raw data
 ```
 
 This tool automatically detects whether the file is a CHIRP `.img` file (with metadata)

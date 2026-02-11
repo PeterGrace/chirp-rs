@@ -9,7 +9,7 @@ path = "src/main.rs"
 required-features = ["gui"]
 
 [[bin]]
-name = "parse-memory"
+name = "parse_memory"
 path = "src/bin/parse_memory.rs"
 
 [dependencies]

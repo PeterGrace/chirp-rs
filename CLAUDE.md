@@ -220,14 +220,14 @@ pub fn calculate_total(items: &[Item], tax_rate: f64) -> Result<f64, Calculation
 
 This project includes command-line utilities for working with radio memory data:
 
-### parse-memory
+### parse_memory
 **Purpose**: Parse and display radio memory data from CHIRP `.img` files or raw binary dumps.
 
 **Location**: `src/bin/parse_memory.rs`
 
 **Usage**:
 ```bash
-cargo run --bin parse-memory -- [OPTIONS] <file> [memory_number|range]
+cargo run --bin parse_memory -- [OPTIONS] <file> [memory_number|range]
 ```
 
 **Options**:
@@ -236,11 +236,11 @@ cargo run --bin parse-memory -- [OPTIONS] <file> [memory_number|range]
 
 **Examples**:
 ```bash
-cargo run --bin parse-memory -- radio.img                    # Show all non-empty memories
-cargo run --bin parse-memory -- radio.d75                    # Works with raw dumps too
-cargo run --bin parse-memory -- radio.img 40                 # Show memory #40
-cargo run --bin parse-memory -- radio.img 32-50              # Show range 32-50
-cargo run --bin parse-memory -- --raw radio.img 40           # Show memory #40 with raw data
+cargo run --bin parse_memory -- radio.img                    # Show all non-empty memories
+cargo run --bin parse_memory -- radio.d75                    # Works with raw dumps too
+cargo run --bin parse_memory -- radio.img 40                 # Show memory #40
+cargo run --bin parse_memory -- radio.img 32-50              # Show range 32-50
+cargo run --bin parse_memory -- --raw radio.img 40           # Show memory #40 with raw data
 ```
 
 **Features**:
