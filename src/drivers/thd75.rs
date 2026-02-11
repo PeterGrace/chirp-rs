@@ -82,7 +82,7 @@ const THD75_MODES: &[&str] = &["FM", "DV", "AM", "LSB", "USB", "CW", "NFM", "DV"
 /// Memory flags structure (4 bytes per memory at 0x2000)
 #[derive(Debug, Clone, Copy)]
 struct MemoryFlags {
-    used: u8,
+    band: u8,  // Frequency band: 0x00=2m, 0x01=1.25m, 0x02=70cm, 0xFF=empty
     lockout: bool,
     group: u8,
 }
@@ -90,7 +90,7 @@ struct MemoryFlags {
 impl MemoryFlags {
     fn from_bytes(data: &[u8]) -> Self {
         Self {
-            used: data[0],
+            band: data[0],
             lockout: (data[1] & 0x80) != 0,
             group: data[2],
         }
@@ -98,11 +98,34 @@ impl MemoryFlags {
 
     fn to_bytes(&self) -> [u8; 4] {
         [
-            self.used,
+            self.band,
             if self.lockout { 0x80 } else { 0x00 },
             self.group,
             0xFF,
         ]
+    }
+
+    /// Detect frequency band from frequency in Hz for TH-D75A
+    /// TH-D75A supports: 2m (144-148 MHz), 1.25m (220-225 MHz), 70cm (430-450 MHz)
+    fn detect_band(freq_hz: u64) -> u8 {
+        let freq_mhz = freq_hz as f64 / 1_000_000.0;
+
+        if (144.0..=148.0).contains(&freq_mhz) {
+            0x00  // 2m band (VHF)
+        } else if (220.0..=225.0).contains(&freq_mhz) {
+            0x01  // 1.25m band
+        } else if (430.0..=450.0).contains(&freq_mhz) {
+            0x02  // 70cm band (UHF)
+        } else {
+            // For out-of-band frequencies (receive-only), try to guess the closest band
+            if freq_mhz < 200.0 {
+                0x00  // Default to 2m for lower frequencies
+            } else if freq_mhz < 350.0 {
+                0x01  // Default to 1.25m for mid frequencies
+            } else {
+                0x02  // Default to 70cm for higher frequencies
+            }
+        }
     }
 }
 
@@ -154,7 +177,7 @@ impl RawMemory {
         let freq = read_u32_le(&data[0..4]).unwrap();
         let offset = read_u32_le(&data[4..8]).unwrap();
 
-        let tuning_step = data[8] & 0x0F;
+        let tuning_step = (data[8] >> 4) & 0x0F; // Tuning step in upper 4 bits
         let mode_bits = (data[9] >> 1) & 0x07;
         let narrow_flag = (data[9] & 0x10) != 0; // Bit 4
 
@@ -222,7 +245,16 @@ impl RawMemory {
         bytes[4..8].copy_from_slice(&write_u32_le(self.offset));
 
         // Tuning step and mode
-        bytes[8] = self.tuning_step & 0x0F;
+        tracing::debug!("RawMemory::to_bytes - tuning_step index={}, mode={}", self.tuning_step, self.mode);
+        // SAFETY: Clamp tuning_step to valid range (0-11) to prevent radio errors
+        // Invalid tuning step causes the radio to refuse transmission
+        let tuning_step_clamped = if self.tuning_step > 11 {
+            tracing::warn!("Invalid tuning_step index {} (max 11), clamping to 0", self.tuning_step);
+            0
+        } else {
+            self.tuning_step
+        };
+        bytes[8] = (tuning_step_clamped & 0x0F) << 4; // Tuning step in upper 4 bits
         // For DV mode (mode=1), set bit 4 (0x10) as DV indicator
         // For other modes, encode in bits 1-3
         bytes[9] = if self.mode == 1 {
@@ -684,7 +716,9 @@ impl THD75Radio {
         let offset = mem.offset as u32;
 
         // Find indexes
+        tracing::debug!("encode_memory #{}: tuning_step={} kHz, mode={}", mem.number, mem.tuning_step, mem.mode);
         let tuning_step = Self::find_tuning_step_index(mem.tuning_step)?;
+        tracing::debug!("  -> tuning_step index={}", tuning_step);
         let mode = Self::find_mode_index(&mem.mode)?;
         let duplex = Self::parse_duplex(&mem.duplex)?;
 
@@ -763,7 +797,11 @@ impl THD75Radio {
         };
 
         let flags = MemoryFlags {
-            used: 0x00, // 0x00 = used, 0xFF = empty
+            band: if mem.empty {
+                0xFF  // Empty memories
+            } else {
+                MemoryFlags::detect_band(mem.freq)  // Detect band from frequency
+            },
             lockout: mem.skip == "S",
             group: mem.bank, // Use bank from memory
         };
@@ -811,6 +849,9 @@ impl THD75Radio {
         // Tuning step
         if (raw.tuning_step as usize) < TUNE_STEPS.len() {
             mem.tuning_step = TUNE_STEPS[raw.tuning_step as usize];
+        } else {
+            tracing::warn!("Memory #{}: Invalid tuning_step index {} (max 11), defaulting to 5.0 kHz", number, raw.tuning_step);
+            mem.tuning_step = 5.0; // Default to 5.0 kHz
         }
 
         // Tones
@@ -945,12 +986,12 @@ impl Radio for THD75Radio {
         let flags = MemoryFlags::from_bytes(flags_data);
 
         tracing::debug!(
-            "Memory #{}: flags_off=0x{:04X} used={} lockout={} group={}",
-            number, flags_off, flags.used, flags.lockout, flags.group
+            "Memory #{}: flags_off=0x{:04X} band={} lockout={} group={}",
+            number, flags_off, flags.band, flags.lockout, flags.group
         );
 
         // Check if memory is used
-        if flags.used == 0xFF {
+        if flags.band == 0xFF {
             return Ok(None); // Empty memory
         }
 
@@ -983,13 +1024,13 @@ impl Radio for THD75Radio {
     }
 
     fn set_memory(&mut self, memory: &Memory) -> RadioResult<()> {
-        // Encode memory first (before borrowing mmap)
-        let (raw, flags) = self.encode_memory(memory)?;
-
         // Calculate offsets
         let mem_off = self.memory_offset(memory.number);
         let flags_off = self.flags_offset(memory.number);
         let name_off = self.name_offset(memory.number);
+
+        // Encode memory (this will detect the band from frequency)
+        let (raw, flags) = self.encode_memory(memory)?;
 
         // Prepare data
         let raw_bytes = raw.to_bytes();
@@ -1483,7 +1524,7 @@ mod tests {
         assert_eq!(raw.freq, 147_030_000);
         assert_eq!(raw.offset, 600_000);
         assert_eq!(raw.duplex, Duplex::Plus);
-        assert_eq!(flags.used, 0x00);
+        assert_eq!(flags.band, 0x00); // 147.03 MHz = 2m band
         assert_eq!(raw.tone_mode, 1); // Tone mode
         assert_eq!(raw.rtone, 8); // 88.5 Hz is index 8
     }
@@ -1600,7 +1641,7 @@ mod tests {
             let flags_off = radio.flags_offset(mem_num);
             if let Ok(flags_data) = mmap.get(flags_off, Some(4)) {
                 let flags = MemoryFlags::from_bytes(flags_data);
-                if flags.used != 0xFF {
+                if flags.band != 0xFF {
                     println!(
                         "  Memory #{:3}: group = {} (0x{:02X})",
                         mem_num, flags.group, flags.group

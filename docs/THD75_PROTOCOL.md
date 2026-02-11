@@ -78,12 +78,20 @@ Each memory has a 4-byte flag structure:
 
 ```rust
 struct MemoryFlags {
-    used: u8,        // 0xFF = empty, other = used
+    band: u8,        // Frequency band: 0x00=2m, 0x01=1.25m, 0x02=70cm, 0xFF=empty
     lockout: bool,   // Bit 7 of byte 1: skip flag
     group: u8,       // Byte 2: group number (0-9)
     unknown: u8,     // Byte 3: always 0xFF
 }
 ```
+
+**Critical Discovery:** Byte 0 is NOT a simple "used" flag - it encodes the frequency band:
+- **0x00** = 2m band (144-148 MHz VHF)
+- **0x01** = 1.25m band (220-225 MHz)
+- **0x02** = 70cm band (430-450 MHz UHF)
+- **0xFF** = Empty/unused memory
+
+The radio uses this to determine which VFO/receiver section to use for the memory.
 
 **Offset calculation:** `0x2000 + (memory_number * 4)`
 

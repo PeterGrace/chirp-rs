@@ -48,6 +48,7 @@ cpp! {{
         const char* duplex;
         const char* offset;
         const char* mode;
+        const char* tuning_step;
         const char* tmode;
         const char* tone;
         const char* power;
@@ -76,8 +77,9 @@ cpp! {{
         const Memory* get_memory_by_row(size_t row);
         const char* update_memory(size_t row, uint64_t freq, const char* name,
                                  const char* duplex, uint64_t offset, const char* mode,
-                                 const char* tmode, float rtone, float ctone, uint8_t bank,
-                                 const char* urcall, const char* rpt1call, const char* rpt2call);
+                                 float tuning_step, const char* tmode, float rtone, float ctone,
+                                 uint8_t bank, const char* urcall, const char* rpt1call,
+                                 const char* rpt2call);
         const char* get_vendors();
         const char* get_models_for_vendor(const char* vendor);
         const char* get_serial_ports();
@@ -187,12 +189,13 @@ cpp! {{
             table->setItem(row, 3, new QTableWidgetItem(QString::fromUtf8(data.duplex)));
             table->setItem(row, 4, new QTableWidgetItem(QString::fromUtf8(data.offset)));
             table->setItem(row, 5, new QTableWidgetItem(QString::fromUtf8(data.mode)));
-            table->setItem(row, 6, new QTableWidgetItem(QString::fromUtf8(data.tmode)));
-            table->setItem(row, 7, new QTableWidgetItem(QString::fromUtf8(data.tone)));
-            table->setItem(row, 8, new QTableWidgetItem(QString::fromUtf8(data.power)));
-            table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
-            table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
-            table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
+            table->setItem(row, 6, new QTableWidgetItem(QString::fromUtf8(data.tuning_step)));
+            table->setItem(row, 7, new QTableWidgetItem(QString::fromUtf8(data.tmode)));
+            table->setItem(row, 8, new QTableWidgetItem(QString::fromUtf8(data.tone)));
+            table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.power)));
+            table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
+            table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
+            table->setItem(row, 12, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
             // Bank column removed - now shown in tree view instead
         }
 
@@ -249,12 +252,13 @@ cpp! {{
             table->setItem(row, 3, new QTableWidgetItem(QString::fromUtf8(data.duplex)));
             table->setItem(row, 4, new QTableWidgetItem(QString::fromUtf8(data.offset)));
             table->setItem(row, 5, new QTableWidgetItem(QString::fromUtf8(data.mode)));
-            table->setItem(row, 6, new QTableWidgetItem(QString::fromUtf8(data.tmode)));
-            table->setItem(row, 7, new QTableWidgetItem(QString::fromUtf8(data.tone)));
-            table->setItem(row, 8, new QTableWidgetItem(QString::fromUtf8(data.power)));
-            table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
-            table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
-            table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
+            table->setItem(row, 6, new QTableWidgetItem(QString::fromUtf8(data.tuning_step)));
+            table->setItem(row, 7, new QTableWidgetItem(QString::fromUtf8(data.tmode)));
+            table->setItem(row, 8, new QTableWidgetItem(QString::fromUtf8(data.tone)));
+            table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.power)));
+            table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
+            table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
+            table->setItem(row, 12, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
             // Bank column removed - now shown in tree view instead
         }
 
@@ -318,12 +322,13 @@ cpp! {{
             table->setItem(row, 3, new QTableWidgetItem(QString::fromUtf8(data.duplex)));
             table->setItem(row, 4, new QTableWidgetItem(QString::fromUtf8(data.offset)));
             table->setItem(row, 5, new QTableWidgetItem(QString::fromUtf8(data.mode)));
-            table->setItem(row, 6, new QTableWidgetItem(QString::fromUtf8(data.tmode)));
-            table->setItem(row, 7, new QTableWidgetItem(QString::fromUtf8(data.tone)));
-            table->setItem(row, 8, new QTableWidgetItem(QString::fromUtf8(data.power)));
-            table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
-            table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
-            table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
+            table->setItem(row, 6, new QTableWidgetItem(QString::fromUtf8(data.tuning_step)));
+            table->setItem(row, 7, new QTableWidgetItem(QString::fromUtf8(data.tmode)));
+            table->setItem(row, 8, new QTableWidgetItem(QString::fromUtf8(data.tone)));
+            table->setItem(row, 9, new QTableWidgetItem(QString::fromUtf8(data.power)));
+            table->setItem(row, 10, new QTableWidgetItem(QString::fromUtf8(data.urcall)));
+            table->setItem(row, 11, new QTableWidgetItem(QString::fromUtf8(data.rpt1)));
+            table->setItem(row, 12, new QTableWidgetItem(QString::fromUtf8(data.rpt2)));
             // Note: Bank column removed
         }
 
@@ -712,6 +717,10 @@ cpp! {{
         modeCombo->addItems({"FM", "NFM", "AM", "DV", "USB", "LSB"});
         modeCombo->setCurrentText(QString::fromUtf8(data.mode));
 
+        QComboBox* tuningStepCombo = new QComboBox();
+        tuningStepCombo->addItems({"5.0", "6.25", "8.33", "9.0", "10.0", "12.5", "15.0", "20.0", "25.0", "30.0", "50.0", "100.0"});
+        tuningStepCombo->setCurrentText(QString::fromUtf8(data.tuning_step));
+
         QComboBox* tmodeCombo = new QComboBox();
         tmodeCombo->addItems({"", "Tone", "TSQL", "DTCS", "Cross"});
         tmodeCombo->setCurrentText(QString::fromUtf8(data.tmode));
@@ -767,6 +776,7 @@ cpp! {{
         layout->addRow("Duplex:", duplexCombo);
         layout->addRow("Offset (kHz):", offsetEdit);
         layout->addRow("Mode:", modeCombo);
+        layout->addRow("Tuning Step (kHz):", tuningStepCombo);
 
         // Tone fields (hidden for DV mode)
         QWidget* toneWidget = new QWidget();
@@ -850,6 +860,7 @@ cpp! {{
             // Get tones from dropdowns (no validation needed - all values are valid)
             float rtone = rtoneCombo->currentText().toFloat();
             float ctone = ctoneCombo->currentText().toFloat();
+            float tuningStep = tuningStepCombo->currentText().toFloat();
 
             // Call Rust to update memory
             const char* error = update_memory(
@@ -859,6 +870,7 @@ cpp! {{
                 duplexCombo->currentText().toUtf8().constData(),
                 offsetHz,
                 modeCombo->currentText().toUtf8().constData(),
+                tuningStep,
                 tmodeCombo->currentText().toUtf8().constData(),
                 rtone,
                 ctone,
@@ -936,6 +948,7 @@ pub struct RowData {
     duplex: *const c_char,
     offset: *const c_char,
     mode: *const c_char,
+    tuning_step: *const c_char,
     tmode: *const c_char,
     tone: *const c_char,
     power: *const c_char,
@@ -1013,6 +1026,7 @@ fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
             String::new(),
             String::new(),
             String::new(),
+            String::new(), // tuning_step
             String::new(),
             String::new(),
             String::new(),
@@ -1081,6 +1095,7 @@ fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
         mem.duplex.clone(),
         offset_str,
         mem.mode.clone(),
+        format!("{}", mem.tuning_step), // Tuning step in kHz
         tmode,
         tone_str,
         power_str,
@@ -1125,13 +1140,14 @@ pub extern "C" fn get_memory_row(row: usize) -> RowData {
                 duplex: row_cstrings[3].as_ptr(),
                 offset: row_cstrings[4].as_ptr(),
                 mode: row_cstrings[5].as_ptr(),
-                tmode: row_cstrings[6].as_ptr(),
-                tone: row_cstrings[7].as_ptr(),
-                power: row_cstrings[8].as_ptr(),
-                urcall: row_cstrings[9].as_ptr(),
-                rpt1: row_cstrings[10].as_ptr(),
-                rpt2: row_cstrings[11].as_ptr(),
-                bank: row_cstrings[12].as_ptr(),
+                tuning_step: row_cstrings[6].as_ptr(),
+                tmode: row_cstrings[7].as_ptr(),
+                tone: row_cstrings[8].as_ptr(),
+                power: row_cstrings[9].as_ptr(),
+                urcall: row_cstrings[10].as_ptr(),
+                rpt1: row_cstrings[11].as_ptr(),
+                rpt2: row_cstrings[12].as_ptr(),
+                bank: row_cstrings[13].as_ptr(),
             };
         }
     }
@@ -1145,6 +1161,7 @@ pub extern "C" fn get_memory_row(row: usize) -> RowData {
         duplex: EMPTY.as_ptr() as *const c_char,
         offset: EMPTY.as_ptr() as *const c_char,
         mode: EMPTY.as_ptr() as *const c_char,
+        tuning_step: EMPTY.as_ptr() as *const c_char,
         tmode: EMPTY.as_ptr() as *const c_char,
         tone: EMPTY.as_ptr() as *const c_char,
         power: EMPTY.as_ptr() as *const c_char,
@@ -1231,13 +1248,14 @@ pub extern "C" fn get_memory_by_band_row(band_num: u8, row: usize) -> RowData {
                         duplex: row_cstrings[3].as_ptr(),
                         offset: row_cstrings[4].as_ptr(),
                         mode: row_cstrings[5].as_ptr(),
-                        tmode: row_cstrings[6].as_ptr(),
-                        tone: row_cstrings[7].as_ptr(),
-                        power: row_cstrings[8].as_ptr(),
-                        urcall: row_cstrings[9].as_ptr(),
-                        rpt1: row_cstrings[10].as_ptr(),
-                        rpt2: row_cstrings[11].as_ptr(),
-                        bank: row_cstrings[12].as_ptr(),
+                        tuning_step: row_cstrings[6].as_ptr(),
+                        tmode: row_cstrings[7].as_ptr(),
+                        tone: row_cstrings[8].as_ptr(),
+                        power: row_cstrings[9].as_ptr(),
+                        urcall: row_cstrings[10].as_ptr(),
+                        rpt1: row_cstrings[11].as_ptr(),
+                        rpt2: row_cstrings[12].as_ptr(),
+                        bank: row_cstrings[13].as_ptr(),
                     };
                 }
             }
@@ -1253,6 +1271,7 @@ pub extern "C" fn get_memory_by_band_row(band_num: u8, row: usize) -> RowData {
         duplex: EMPTY.as_ptr() as *const c_char,
         offset: EMPTY.as_ptr() as *const c_char,
         mode: EMPTY.as_ptr() as *const c_char,
+        tuning_step: EMPTY.as_ptr() as *const c_char,
         tmode: EMPTY.as_ptr() as *const c_char,
         tone: EMPTY.as_ptr() as *const c_char,
         power: EMPTY.as_ptr() as *const c_char,
@@ -1359,13 +1378,14 @@ pub extern "C" fn get_memory_by_bank_row(bank_num: u8, row: usize) -> RowData {
                         duplex: row_cstrings[3].as_ptr(),
                         offset: row_cstrings[4].as_ptr(),
                         mode: row_cstrings[5].as_ptr(),
-                        tmode: row_cstrings[6].as_ptr(),
-                        tone: row_cstrings[7].as_ptr(),
-                        power: row_cstrings[8].as_ptr(),
-                        urcall: row_cstrings[9].as_ptr(),
-                        rpt1: row_cstrings[10].as_ptr(),
-                        rpt2: row_cstrings[11].as_ptr(),
-                        bank: row_cstrings[12].as_ptr(),
+                        tuning_step: row_cstrings[6].as_ptr(),
+                        tmode: row_cstrings[7].as_ptr(),
+                        tone: row_cstrings[8].as_ptr(),
+                        power: row_cstrings[9].as_ptr(),
+                        urcall: row_cstrings[10].as_ptr(),
+                        rpt1: row_cstrings[11].as_ptr(),
+                        rpt2: row_cstrings[12].as_ptr(),
+                        bank: row_cstrings[13].as_ptr(),
                     };
                 }
             }
@@ -1381,6 +1401,7 @@ pub extern "C" fn get_memory_by_bank_row(bank_num: u8, row: usize) -> RowData {
         duplex: EMPTY.as_ptr() as *const c_char,
         offset: EMPTY.as_ptr() as *const c_char,
         mode: EMPTY.as_ptr() as *const c_char,
+        tuning_step: EMPTY.as_ptr() as *const c_char,
         tmode: EMPTY.as_ptr() as *const c_char,
         tone: EMPTY.as_ptr() as *const c_char,
         power: EMPTY.as_ptr() as *const c_char,
@@ -2466,6 +2487,7 @@ pub unsafe extern "C" fn update_memory(
     duplex: *const c_char,
     offset: u64,
     mode: *const c_char,
+    tuning_step: f32,
     tmode: *const c_char,
     rtone: f32,
     ctone: f32,
@@ -2500,6 +2522,7 @@ pub unsafe extern "C" fn update_memory(
     mem.duplex = duplex_str;
     mem.offset = offset;
     mem.mode = mode_str;
+    mem.tuning_step = tuning_step;
     mem.tmode = tmode_str;
     mem.rtone = rtone;
     mem.ctone = ctone;
@@ -2729,10 +2752,10 @@ pub fn run_qt_app() -> i32 {
 
             // Create table widget for memory display (right side)
             QTableWidget* table = new QTableWidget(splitter);
-            table->setColumnCount(12);  // Removed "Bank" column
+            table->setColumnCount(13);  // Added tuning step column
             QStringList headers;
             headers << "Loc" << "Frequency" << "Name" << "Duplex" << "Offset"
-                    << "Mode" << "ToneMode" << "Tone" << "Power"
+                    << "Mode" << "Step" << "ToneMode" << "Tone" << "Power"
                     << "URCALL" << "RPT1" << "RPT2";
             table->setHorizontalHeaderLabels(headers);
             table->horizontalHeader()->setStretchLastSection(true);
