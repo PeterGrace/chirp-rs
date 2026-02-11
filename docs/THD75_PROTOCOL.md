@@ -441,10 +441,7 @@ cargo run --bin parse-dump -- test_data/radio_dump.bin 32-50
 ### Related Files
 
 - `src/drivers/thd75.rs` - Implementation
-- `src/bin/parse_dump.rs` - CLI testing tool
-- `test_data/radio_dump.bin` - Test data (500KB binary dump)
-- `test_data/Kenwood_TH-D75_20260207.img` - CHIRP image file (489KB)
-- `test_data/Kenwood_TH-D75_20260207.csv` - Ground truth data (CSV export)
+- `test_data/Kenwood_TH-D75_20260211.img` - Cloned image file (489KB)
 
 ---
 

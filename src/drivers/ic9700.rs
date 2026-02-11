@@ -15,35 +15,35 @@ const CONTROLLER_ADDR: u8 = 0xE0;
 // IC-9700 supports these modes
 // Matches Python CHIRP _MODES array (29 entries, indices 0-28)
 const MODES: &[Option<&str>] = &[
-    Some("LSB"),   // 0
-    Some("USB"),   // 1
-    Some("AM"),    // 2
-    Some("CW"),    // 3
-    Some("RTTY"),  // 4
-    Some("FM"),    // 5
-    Some("CWR"),   // 6
+    Some("LSB"),    // 0
+    Some("USB"),    // 1
+    Some("AM"),     // 2
+    Some("CW"),     // 3
+    Some("RTTY"),   // 4
+    Some("FM"),     // 5
+    Some("CWR"),    // 6
     Some("RTTY-R"), // 7
-    None, // 8
-    None, // 9
-    None, // 10
-    None, // 11
-    None, // 12
-    None, // 13
-    None, // 14
-    None, // 15
-    None, // 16
-    Some("DV"), // 17
-    None, // 18
-    None, // 19
-    None, // 20
-    None, // 21
-    Some("DD"), // 22
-    None, // 23
-    None, // 24
-    None, // 25
-    None, // 26
-    None, // 27
-    None, // 28
+    None,           // 8
+    None,           // 9
+    None,           // 10
+    None,           // 11
+    None,           // 12
+    None,           // 13
+    None,           // 14
+    None,           // 15
+    None,           // 16
+    Some("DV"),     // 17
+    None,           // 18
+    None,           // 19
+    None,           // 20
+    None,           // 21
+    Some("DD"),     // 22
+    None,           // 23
+    None,           // 24
+    None,           // 25
+    None,           // 26
+    None,           // 27
+    None,           // 28
 ];
 
 // Cross-mode tone support
@@ -186,14 +186,11 @@ impl RawMemory {
     fn to_memory(&self, number: u32) -> RadioResult<Memory> {
         let mode_idx = self.mode as usize;
         tracing::debug!("Parsing memory {}: mode byte = {}", number, self.mode);
-        let mode = MODES
-            .get(mode_idx)
-            .and_then(|m| *m)
-            .ok_or_else(|| {
-                let err = format!("Invalid mode: {} (index out of bounds or None)", self.mode);
-                tracing::error!("{}", err);
-                RadioError::InvalidResponse(err)
-            })?;
+        let mode = MODES.get(mode_idx).and_then(|m| *m).ok_or_else(|| {
+            let err = format!("Invalid mode: {} (index out of bounds or None)", self.mode);
+            tracing::error!("{}", err);
+            RadioError::InvalidResponse(err)
+        })?;
 
         let mut mem = if mode == "DV" {
             // D-STAR mode - create DVMemory and populate both base and DV fields
@@ -365,7 +362,8 @@ impl RawMemory {
             *b"CQCQCQ  " // Default for non-DV
         } else {
             let mut buf = [b' '; 8];
-            buf[..mem.dv_urcall.len().min(8)].copy_from_slice(&mem.dv_urcall.as_bytes()[..mem.dv_urcall.len().min(8)]);
+            buf[..mem.dv_urcall.len().min(8)]
+                .copy_from_slice(&mem.dv_urcall.as_bytes()[..mem.dv_urcall.len().min(8)]);
             buf
         };
 
@@ -373,7 +371,8 @@ impl RawMemory {
             [b' '; 8]
         } else {
             let mut buf = [b' '; 8];
-            buf[..mem.dv_rpt1call.len().min(8)].copy_from_slice(&mem.dv_rpt1call.as_bytes()[..mem.dv_rpt1call.len().min(8)]);
+            buf[..mem.dv_rpt1call.len().min(8)]
+                .copy_from_slice(&mem.dv_rpt1call.as_bytes()[..mem.dv_rpt1call.len().min(8)]);
             buf
         };
 
@@ -381,7 +380,8 @@ impl RawMemory {
             [b' '; 8]
         } else {
             let mut buf = [b' '; 8];
-            buf[..mem.dv_rpt2call.len().min(8)].copy_from_slice(&mem.dv_rpt2call.as_bytes()[..mem.dv_rpt2call.len().min(8)]);
+            buf[..mem.dv_rpt2call.len().min(8)]
+                .copy_from_slice(&mem.dv_rpt2call.as_bytes()[..mem.dv_rpt2call.len().min(8)]);
             buf
         };
 
@@ -632,7 +632,11 @@ impl IC9700Radio {
         for (i, mem) in memories.iter().enumerate() {
             if let Some(callback) = &status_fn {
                 let action = if mem.empty { "Erasing" } else { "Writing" };
-                callback(i, memories.len(), &format!("{} memory {}", action, mem.number));
+                callback(
+                    i,
+                    memories.len(),
+                    &format!("{} memory {}", action, mem.number),
+                );
             }
 
             self.set_memory_to_port(port, mem).await?;

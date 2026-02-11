@@ -91,15 +91,28 @@ cargo run --bin radio-dump -- <port> <vendor> <model> <output_file>
 cargo run --bin radio-dump -- /dev/ttyUSB0 Kenwood TH-D75 radio_dump.bin
 ```
 
-#### Parse Dump Tool
-Parse and display memories from a binary dump file:
+See `RADIO_DUMP_TOOL.md` for detailed documentation.
+
+#### Parse Memory Tool
+Parse and display memories from CHIRP `.img` files or raw binary dumps:
 
 ```bash
-cargo run --bin parse-dump -- <dump_file>
+cargo run --bin parse-memory -- [OPTIONS] <file> [memory_number|range]
 
-# Example:
-cargo run --bin parse-dump -- test_data/radio_dump.bin
+# Examples:
+cargo run --bin parse-memory -- radio.img                  # Show all non-empty
+cargo run --bin parse-memory -- radio.d75 40               # Show memory #40
+cargo run --bin parse-memory -- radio.img 32-50            # Show range
+cargo run --bin parse-memory -- --raw radio.img 40         # Show with raw data
 ```
+
+This tool automatically detects whether the file is a CHIRP `.img` file (with metadata)
+or a raw binary dump, and displays all available information including:
+- Metadata (vendor, model, CHIRP version) when available
+- Bank names (for .img files)
+- D-STAR fields (URCALL, RPT1/2) for DV mode
+- Comprehensive tone information (CTCSS, DTCS)
+- Raw memory/bank data (with --raw flag)
 
 ## Architecture
 

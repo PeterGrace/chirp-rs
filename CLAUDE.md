@@ -215,3 +215,49 @@ pub fn calculate_total(items: &[Item], tax_rate: f64) -> Result<f64, Calculation
 ---
 
 **Remember:** Prioritize clarity and maintainability over cleverness.
+
+## CLI Tools Reference
+
+This project includes command-line utilities for working with radio memory data:
+
+### parse-memory
+**Purpose**: Parse and display radio memory data from CHIRP `.img` files or raw binary dumps.
+
+**Location**: `src/bin/parse_memory.rs`
+
+**Usage**:
+```bash
+cargo run --bin parse-memory -- [OPTIONS] <file> [memory_number|range]
+```
+
+**Options**:
+- `--raw`: Show raw memory/bank data (debug mode)
+- `-h, --help`: Show help message
+
+**Examples**:
+```bash
+cargo run --bin parse-memory -- radio.img                    # Show all non-empty memories
+cargo run --bin parse-memory -- radio.d75                    # Works with raw dumps too
+cargo run --bin parse-memory -- radio.img 40                 # Show memory #40
+cargo run --bin parse-memory -- radio.img 32-50              # Show range 32-50
+cargo run --bin parse-memory -- --raw radio.img 40           # Show memory #40 with raw data
+```
+
+**Features**:
+- Auto-detects file format (.img with metadata or raw dump)
+- Displays all available information: frequencies, modes, tones, D-STAR fields, bank names
+- Supports filtering by single memory, range, or all non-empty memories
+- `--raw` flag shows debug information (raw memory bytes, bank/flags data)
+
+**Use this tool when**:
+- Debugging memory parsing issues
+- Verifying radio memory dumps are correct
+- Understanding memory structure for driver development
+- Comparing CHIRP compatibility
+
+### radio-dump
+**Purpose**: Download memory data directly from a connected radio.
+
+**Location**: `src/bin/radio_dump.rs`
+
+**Documentation**: See RADIO_DUMP_TOOL.md for detailed usage.

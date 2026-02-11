@@ -1,15 +1,14 @@
 // Build script for Qt GUI
 // This compiles any C++ code needed for Qt integration
 
-use std::{env, path::PathBuf};
-
 fn main() {
     // Only build Qt components when GUI feature is enabled
     #[cfg(feature = "gui")]
     {
+        use std::{env, path::PathBuf};
         // Use Qt6 since qmetaobject pulls in Qt6Core
         let target = env::var("TARGET").unwrap_or_default();
-        let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();   // "windows", "linux", ...
+        let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default(); // "windows", "linux", ...
         let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default(); // "msvc", "gnu", ...
 
         let (qt_include_root, qt_lib_dir) = if target_os == "windows" {
@@ -32,7 +31,9 @@ fn main() {
                 .into_iter()
                 .flatten()
                 .find(|p| p.exists())
-                .expect("Qt include path not found. Set QT_INCLUDE_PATH to your Qt6 include directory.");
+                .expect(
+                    "Qt include path not found. Set QT_INCLUDE_PATH to your Qt6 include directory.",
+                );
 
             (include_root, None)
         };

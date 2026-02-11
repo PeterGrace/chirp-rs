@@ -324,8 +324,8 @@ impl Memory {
         "RPT2CALL",
         "DVCODE",
         "Band", // Added for multi-band radios (e.g., IC-9700)
-        // Note: "Bank" is NOT part of official CHIRP CSV format
-        // We can still import it if present, but don't export it by default
+                // Note: "Bank" is NOT part of official CHIRP CSV format
+                // We can still import it if present, but don't export it by default
     ];
 
     /// Export to CSV row (matches official CHIRP format - 22 columns including Band)

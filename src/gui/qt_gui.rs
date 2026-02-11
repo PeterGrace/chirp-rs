@@ -1041,7 +1041,10 @@ fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
     let offset_str = if mem.offset > 0 {
         // Format offset in kHz (more intuitive than MHz for typical offsets like 600 kHz or 5000 kHz)
         let offset_khz = mem.offset as f64 / 1000.0;
-        format!("{:.3}", offset_khz).trim_end_matches('0').trim_end_matches('.').to_string()
+        format!("{:.3}", offset_khz)
+            .trim_end_matches('0')
+            .trim_end_matches('.')
+            .to_string()
     } else {
         String::new()
     };
@@ -1429,7 +1432,12 @@ pub extern "C" fn get_global_index_from_bank_row(bank_num: u8, row: usize) -> is
 
 /// Initialize memory data for display
 /// Build band groups and display names from memories
-fn build_band_info(memories: &[Memory]) -> (std::collections::HashMap<u8, Vec<usize>>, std::collections::HashMap<u8, String>) {
+fn build_band_info(
+    memories: &[Memory],
+) -> (
+    std::collections::HashMap<u8, Vec<usize>>,
+    std::collections::HashMap<u8, String>,
+) {
     use std::collections::HashMap;
 
     let mut band_groups: HashMap<u8, Vec<usize>> = HashMap::new();
@@ -1498,7 +1506,10 @@ fn build_bank_info(memories: &[Memory]) -> std::collections::HashMap<u8, Vec<usi
     // Group memories by bank number (skip empty memories)
     for (idx, mem) in memories.iter().enumerate() {
         if !mem.empty {
-            bank_groups.entry(mem.bank).or_insert_with(Vec::new).push(idx);
+            bank_groups
+                .entry(mem.bank)
+                .or_insert_with(Vec::new)
+                .push(idx);
         }
     }
 
@@ -2094,9 +2105,9 @@ pub unsafe extern "C" fn download_from_radio(
                 use crate::drivers::{CloneModeRadio, Radio};
                 let mut radio = THD75Radio::new();
                 radio.process_mmap(&mmap).ok();
-                radio.get_bank_names().unwrap_or_else(|_| {
-                    (0..30).map(|i| format!("Bank {}", i)).collect()
-                })
+                radio
+                    .get_bank_names()
+                    .unwrap_or_else(|_| (0..30).map(|i| format!("Bank {}", i)).collect())
             };
 
             // Convert to CStrings (include all memories, even empty ones)
@@ -2262,9 +2273,9 @@ pub extern "C" fn get_download_result() -> *const c_char {
                 use crate::drivers::{CloneModeRadio, Radio};
                 let mut radio = THD75Radio::new();
                 radio.process_mmap(&mmap).ok();
-                radio.get_bank_names().unwrap_or_else(|_| {
-                    (0..30).map(|i| format!("Bank {}", i)).collect()
-                })
+                radio
+                    .get_bank_names()
+                    .unwrap_or_else(|_| (0..30).map(|i| format!("Bank {}", i)).collect())
             };
 
             // Convert to CStrings (include all memories, even empty ones)
@@ -2630,9 +2641,9 @@ pub extern "C" fn paste_memory_at(row: usize) -> *const c_char {
 
     // Update the memory at the row
     let mut new_mem = clipboard_mem;
-    new_mem.number = target_number;  // Keep the target slot's channel number
-    new_mem.band = target_band;      // Keep the target slot's band assignment
-    new_mem.modified = true;         // Mark as modified for efficient upload
+    new_mem.number = target_number; // Keep the target slot's channel number
+    new_mem.band = target_band; // Keep the target slot's band assignment
+    new_mem.modified = true; // Mark as modified for efficient upload
     state.memories[row] = new_mem.clone();
 
     // Regenerate CStrings for this row

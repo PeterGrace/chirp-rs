@@ -48,7 +48,7 @@ pub async fn download_from_radio(
     // Use shorter timeout for CI-V radios (Icom) since responses are fast
     // Kenwood clone mode needs longer timeout for large block transfers
     let timeout = if vendor.to_lowercase() == "icom" {
-        Duration::from_secs(2)  // CI-V responses should be quick
+        Duration::from_secs(2) // CI-V responses should be quick
     } else {
         Duration::from_secs(10) // Clone mode block transfers can be slow
     };
@@ -202,7 +202,11 @@ async fn download_command_mode(
         all_memories.extend(band_memories);
     }
 
-    tracing::info!("Downloaded total of {} memories from {} band(s)", all_memories.len(), total_bands);
+    tracing::info!(
+        "Downloaded total of {} memories from {} band(s)",
+        all_memories.len(),
+        total_bands
+    );
 
     // IC-9700 doesn't use clone mode, so create empty mmap
     // Upload will use command-based protocol
@@ -243,7 +247,7 @@ pub async fn upload_to_radio(
     // Use shorter timeout for CI-V radios (Icom) since responses are fast
     // Kenwood clone mode needs longer timeout for large block transfers
     let timeout = if vendor.to_lowercase() == "icom" {
-        Duration::from_secs(2)  // CI-V responses should be quick
+        Duration::from_secs(2) // CI-V responses should be quick
     } else {
         Duration::from_secs(10) // Clone mode block transfers can be slow
     };
@@ -377,10 +381,7 @@ async fn upload_command_mode(
     let is_ic9700 = model.contains("9700");
 
     // Filter to only modified memories for efficient upload
-    let modified_memories: Vec<&Memory> = memories
-        .iter()
-        .filter(|m| m.modified)
-        .collect();
+    let modified_memories: Vec<&Memory> = memories.iter().filter(|m| m.modified).collect();
 
     tracing::info!(
         "Upload: {} modified out of {} total memories",

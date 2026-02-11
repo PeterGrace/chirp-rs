@@ -209,7 +209,12 @@ impl CivProtocol {
         sub: Option<u8>,
         data: &[u8],
     ) -> RadioResult<CivFrame> {
-        tracing::debug!("CI-V send_command: cmd=0x{:02X}, sub={:?}, data_len={}", cmd, sub, data.len());
+        tracing::debug!(
+            "CI-V send_command: cmd=0x{:02X}, sub={:?}, data_len={}",
+            cmd,
+            sub,
+            data.len()
+        );
 
         let mut frame = CivFrame::new(cmd, sub);
         frame.set_data(data);
@@ -269,7 +274,13 @@ impl CivProtocol {
             .map(|b| format!("{:02X}", b))
             .collect::<Vec<_>>()
             .join(" ");
-        tracing::debug!("read_memory received (hex): bank={}, ch={}, {} bytes: {}", bank, channel, data.len(), hex_dump);
+        tracing::debug!(
+            "read_memory received (hex): bank={}, ch={}, {} bytes: {}",
+            bank,
+            channel,
+            data.len(),
+            hex_dump
+        );
 
         Ok(response.into_data())
     }
@@ -303,12 +314,17 @@ impl CivProtocol {
         let response = self.send_command(port, 0x1A, Some(0x00), &data).await?;
 
         // Log response for debugging
-        let response_hex: String = response.data()
+        let response_hex: String = response
+            .data()
             .iter()
             .map(|b| format!("{:02X}", b))
             .collect::<Vec<_>>()
             .join(" ");
-        tracing::debug!("write_memory response: {} bytes: {}", response.data().len(), response_hex);
+        tracing::debug!(
+            "write_memory response: {} bytes: {}",
+            response.data().len(),
+            response_hex
+        );
 
         // Check for error (NAK = 0xFA) or success (ACK = 0xFB or empty)
         // For write operations, the radio typically returns an ACK with just 0xFB
@@ -344,12 +360,17 @@ impl CivProtocol {
         let response = self.send_command(port, 0x1A, Some(0x00), &data).await?;
 
         // Log response for debugging
-        let response_hex: String = response.data()
+        let response_hex: String = response
+            .data()
             .iter()
             .map(|b| format!("{:02X}", b))
             .collect::<Vec<_>>()
             .join(" ");
-        tracing::debug!("erase_memory response: {} bytes: {}", response.data().len(), response_hex);
+        tracing::debug!(
+            "erase_memory response: {} bytes: {}",
+            response.data().len(),
+            response_hex
+        );
 
         // Check for error (NAK = 0xFA) or success (ACK = 0xFB or empty)
         // Same logic as write_memory

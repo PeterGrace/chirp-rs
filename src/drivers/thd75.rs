@@ -82,7 +82,7 @@ const THD75_MODES: &[&str] = &["FM", "DV", "AM", "LSB", "USB", "CW", "NFM", "DV"
 /// Memory flags structure (4 bytes per memory at 0x2000)
 #[derive(Debug, Clone, Copy)]
 struct MemoryFlags {
-    band: u8,  // Frequency band: 0x00=2m, 0x01=1.25m, 0x02=70cm, 0xFF=empty
+    band: u8, // Frequency band: 0x00=2m, 0x01=1.25m, 0x02=70cm, 0xFF=empty
     lockout: bool,
     group: u8,
 }
@@ -111,19 +111,19 @@ impl MemoryFlags {
         let freq_mhz = freq_hz as f64 / 1_000_000.0;
 
         if (144.0..=148.0).contains(&freq_mhz) {
-            0x00  // 2m band (VHF)
+            0x00 // 2m band (VHF)
         } else if (220.0..=225.0).contains(&freq_mhz) {
-            0x01  // 1.25m band
+            0x01 // 1.25m band
         } else if (430.0..=450.0).contains(&freq_mhz) {
-            0x02  // 70cm band (UHF)
+            0x02 // 70cm band (UHF)
         } else {
             // For out-of-band frequencies (receive-only), try to guess the closest band
             if freq_mhz < 200.0 {
-                0x00  // Default to 2m for lower frequencies
+                0x00 // Default to 2m for lower frequencies
             } else if freq_mhz < 350.0 {
-                0x01  // Default to 1.25m for mid frequencies
+                0x01 // Default to 1.25m for mid frequencies
             } else {
-                0x02  // Default to 70cm for higher frequencies
+                0x02 // Default to 70cm for higher frequencies
             }
         }
     }
@@ -245,18 +245,25 @@ impl RawMemory {
         bytes[4..8].copy_from_slice(&write_u32_le(self.offset));
 
         // Tuning step and mode
-        tracing::debug!("RawMemory::to_bytes - tuning_step index={}, mode={}", self.tuning_step, self.mode);
+        tracing::debug!(
+            "RawMemory::to_bytes - tuning_step index={}, mode={}",
+            self.tuning_step,
+            self.mode
+        );
         // SAFETY: Clamp tuning_step to valid range (0-11) to prevent radio errors
         // Invalid tuning step causes the radio to refuse transmission
         let tuning_step_clamped = if self.tuning_step > 11 {
-            tracing::warn!("Invalid tuning_step index {} (max 11), clamping to 0", self.tuning_step);
+            tracing::warn!(
+                "Invalid tuning_step index {} (max 11), clamping to 0",
+                self.tuning_step
+            );
             0
         } else {
             self.tuning_step
         };
         bytes[8] = (tuning_step_clamped & 0x0F) << 4; // Tuning step in upper 4 bits
-        // For DV mode (mode=1), set bit 4 (0x10) as DV indicator
-        // For other modes, encode in bits 1-3
+                                                      // For DV mode (mode=1), set bit 4 (0x10) as DV indicator
+                                                      // For other modes, encode in bits 1-3
         bytes[9] = if self.mode == 1 {
             // DV mode: set bit 4 (DV indicator)
             0x10 | if self.narrow { 0x08 } else { 0x00 }
@@ -716,7 +723,12 @@ impl THD75Radio {
         let offset = mem.offset as u32;
 
         // Find indexes
-        tracing::debug!("encode_memory #{}: tuning_step={} kHz, mode={}", mem.number, mem.tuning_step, mem.mode);
+        tracing::debug!(
+            "encode_memory #{}: tuning_step={} kHz, mode={}",
+            mem.number,
+            mem.tuning_step,
+            mem.mode
+        );
         let tuning_step = Self::find_tuning_step_index(mem.tuning_step)?;
         tracing::debug!("  -> tuning_step index={}", tuning_step);
         let mode = Self::find_mode_index(&mem.mode)?;
@@ -798,9 +810,9 @@ impl THD75Radio {
 
         let flags = MemoryFlags {
             band: if mem.empty {
-                0xFF  // Empty memories
+                0xFF // Empty memories
             } else {
-                MemoryFlags::detect_band(mem.freq)  // Detect band from frequency
+                MemoryFlags::detect_band(mem.freq) // Detect band from frequency
             },
             lockout: mem.skip == "S",
             group: mem.bank, // Use bank from memory
@@ -850,7 +862,11 @@ impl THD75Radio {
         if (raw.tuning_step as usize) < TUNE_STEPS.len() {
             mem.tuning_step = TUNE_STEPS[raw.tuning_step as usize];
         } else {
-            tracing::warn!("Memory #{}: Invalid tuning_step index {} (max 11), defaulting to 5.0 kHz", number, raw.tuning_step);
+            tracing::warn!(
+                "Memory #{}: Invalid tuning_step index {} (max 11), defaulting to 5.0 kHz",
+                number,
+                raw.tuning_step
+            );
             mem.tuning_step = 5.0; // Default to 5.0 kHz
         }
 
@@ -987,7 +1003,11 @@ impl Radio for THD75Radio {
 
         tracing::debug!(
             "Memory #{}: flags_off=0x{:04X} band={} lockout={} group={}",
-            number, flags_off, flags.band, flags.lockout, flags.group
+            number,
+            flags_off,
+            flags.band,
+            flags.lockout,
+            flags.group
         );
 
         // Check if memory is used
@@ -1138,7 +1158,10 @@ impl CloneModeRadio for THD75Radio {
         if let Err(e) = port.set_baud_rate(9600) {
             // Don't fail the download if baud rate change fails (Windows issue)
             // The port will be closed soon anyway
-            tracing::warn!("Failed to change baud rate back to 9600: {} (ignoring, download complete)", e);
+            tracing::warn!(
+                "Failed to change baud rate back to 9600: {} (ignoring, download complete)",
+                e
+            );
         } else {
             // Only restore DTR/RTS if baud rate change succeeded
             port.set_dtr(true).ok();
@@ -1230,7 +1253,10 @@ impl CloneModeRadio for THD75Radio {
         if let Err(e) = port.set_baud_rate(9600) {
             // Don't fail the upload if baud rate change fails (Windows issue)
             // The port will be closed soon anyway
-            tracing::warn!("Failed to change baud rate back to 9600: {} (ignoring, upload complete)", e);
+            tracing::warn!(
+                "Failed to change baud rate back to 9600: {} (ignoring, upload complete)",
+                e
+            );
         } else {
             // Only restore DTR/RTS if baud rate change succeeded
             port.set_dtr(true).ok();
@@ -1338,15 +1364,15 @@ mod tests {
     fn test_parse_real_memories() {
         // Load the actual radio dump for testing
         let dump_path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/thd75.bin");
 
         // Skip test if dump file doesn't exist (e.g., in CI)
         if !dump_path.exists() {
-            eprintln!("Skipping test: radio_dump.bin not found");
+            eprintln!("Skipping test: thd75.bin not found");
             return;
         }
 
-        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let data = std::fs::read(&dump_path).expect("Failed to read thd75.bin");
         let mmap = crate::memmap::MemoryMap::new(data);
         let mut radio = THD75Radio::new();
         radio
@@ -1423,14 +1449,14 @@ mod tests {
     #[test]
     fn test_empty_memory() {
         let dump_path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/thd75.bin");
 
         if !dump_path.exists() {
-            eprintln!("Skipping test: radio_dump.bin not found");
+            eprintln!("Skipping test: thd75.bin not found");
             return;
         }
 
-        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let data = std::fs::read(&dump_path).expect("Failed to read thd75.bin");
         let mmap = crate::memmap::MemoryMap::new(data);
         let mut radio = THD75Radio::new();
         radio
@@ -1446,14 +1472,14 @@ mod tests {
     #[test]
     fn test_dv_memories() {
         let dump_path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/thd75.bin");
 
         if !dump_path.exists() {
-            eprintln!("Skipping test: radio_dump.bin not found");
+            eprintln!("Skipping test: thd75.bin not found");
             return;
         }
 
-        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let data = std::fs::read(&dump_path).expect("Failed to read thd75.bin");
         let mmap = crate::memmap::MemoryMap::new(data);
         let mut radio = THD75Radio::new();
         radio
@@ -1497,14 +1523,14 @@ mod tests {
     fn test_encode_decode_roundtrip() {
         // Load real radio dump
         let dump_path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/thd75.bin");
 
         if !dump_path.exists() {
-            eprintln!("Skipping test: radio_dump.bin not found");
+            eprintln!("Skipping test: thd75.bin not found");
             return;
         }
 
-        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let data = std::fs::read(&dump_path).expect("Failed to read thd75.bin");
         let mmap = MemoryMap::new(data);
         let mut radio = THD75Radio::new();
         radio
@@ -1532,14 +1558,14 @@ mod tests {
     #[test]
     fn test_encode_memories_full() {
         let dump_path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/thd75.bin");
 
         if !dump_path.exists() {
-            eprintln!("Skipping test: radio_dump.bin not found");
+            eprintln!("Skipping test: thd75.bin not found");
             return;
         }
 
-        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let data = std::fs::read(&dump_path).expect("Failed to read thd75.bin");
         let mmap = MemoryMap::new(data);
         let mut radio = THD75Radio::new();
         radio
@@ -1624,14 +1650,14 @@ mod tests {
     #[test]
     fn test_bank_assignments() {
         let dump_path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/radio_dump.bin");
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("test_data/thd75.bin");
 
         if !dump_path.exists() {
-            eprintln!("Skipping test: radio_dump.bin not found");
+            eprintln!("Skipping test: thd75.bin not found");
             return;
         }
 
-        let data = std::fs::read(&dump_path).expect("Failed to read radio_dump.bin");
+        let data = std::fs::read(&dump_path).expect("Failed to read thd75.bin");
         let mmap = MemoryMap::new(data);
         let radio = THD75Radio::new();
 
