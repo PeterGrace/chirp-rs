@@ -63,6 +63,7 @@ cpp! {{
     // Declare Rust FFI functions
     extern "C" {
         size_t get_memory_count();
+        uint32_t get_memory_number_at_row(size_t row);
         RowData get_memory_row(size_t row);
         const char* load_file(const char* path);
         const char* save_file(const char* path);
@@ -764,7 +765,7 @@ cpp! {{
         layout->addRow("Frequency (MHz):", freqEdit);
         layout->addRow("Name:", nameEdit);
         layout->addRow("Duplex:", duplexCombo);
-        layout->addRow("Offset (MHz):", offsetEdit);
+        layout->addRow("Offset (kHz):", offsetEdit);
         layout->addRow("Mode:", modeCombo);
 
         // Tone fields (hidden for DV mode)
@@ -835,16 +836,16 @@ cpp! {{
             // Parse offset
             QString offsetStr = offsetEdit->text().trimmed();
             bool offsetOk = false;
-            double offsetMHz = offsetStr.isEmpty() ? 0.0 : offsetStr.toDouble(&offsetOk);
+            double offsetKHz = offsetStr.isEmpty() ? 0.0 : offsetStr.toDouble(&offsetOk);
 
             if (!offsetStr.isEmpty() && !offsetOk) {
                 QMessageBox::warning(parent, "Invalid Offset",
-                    QString("Invalid offset value: '%1'\n\nPlease enter a valid offset in MHz (e.g., 0.6)")
+                    QString("Invalid offset value: '%1'\n\nPlease enter a valid offset in kHz (e.g., 600 for 2m, 5000 for 70cm)")
                     .arg(offsetStr));
                 return;
             }
 
-            uint64_t offsetHz = static_cast<uint64_t>(offsetMHz * 1000000.0);
+            uint64_t offsetHz = static_cast<uint64_t>(offsetKHz * 1000.0);
 
             // Get tones from dropdowns (no validation needed - all values are valid)
             float rtone = rtoneCombo->currentText().toFloat();
@@ -872,17 +873,54 @@ cpp! {{
                     QString("Could not update memory:\n\n%1").arg(QString::fromUtf8(error)));
                 free_error_message(error);
             } else {
+                // Save the current tree selection before refreshing
+                QTreeWidgetItem* currentTreeItem = tree->currentItem();
+                QString selectedBankName;
+                if (currentTreeItem) {
+                    selectedBankName = currentTreeItem->text(0);
+                }
+
+                // Get the memory number that was edited so we can restore selection
+                size_t editedMemoryNumber = get_memory_number_at_row(row);
+
                 // Refresh the entire view (tree + table) since bank may have changed
                 if (has_bank_organization()) {
                     refreshTreeWithBanks(tree);
-                    // After tree refresh, select "All Memories" or preserve selection
-                    if (tree->topLevelItemCount() > 0) {
-                        tree->setCurrentItem(tree->topLevelItem(0));
+
+                    // Restore tree selection to the previously selected bank
+                    if (!selectedBankName.isEmpty()) {
+                        for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+                            QTreeWidgetItem* item = tree->topLevelItem(i);
+                            if (item->text(0) == selectedBankName) {
+                                tree->setCurrentItem(item);
+                                break;
+                            }
+                        }
                     }
                 } else if (has_band_organization()) {
                     refreshTreeWithBands(tree);
+
+                    // Restore tree selection
+                    if (!selectedBankName.isEmpty()) {
+                        for (int i = 0; i < tree->topLevelItemCount(); ++i) {
+                            QTreeWidgetItem* item = tree->topLevelItem(i);
+                            if (item->text(0) == selectedBankName) {
+                                tree->setCurrentItem(item);
+                                break;
+                            }
+                        }
+                    }
                 } else {
                     refreshTable(table);
+                }
+
+                // Find and select the row corresponding to the edited memory
+                for (int i = 0; i < table->rowCount(); ++i) {
+                    if (get_memory_number_at_row(i) == editedMemoryNumber) {
+                        table->selectRow(i);
+                        table->scrollToItem(table->item(i, 0), QAbstractItemView::PositionAtCenter);
+                        break;
+                    }
                 }
             }
         }
@@ -987,7 +1025,9 @@ fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
 
     let freq_str = Memory::format_freq(mem.freq);
     let offset_str = if mem.offset > 0 {
-        Memory::format_freq(mem.offset)
+        // Format offset in kHz (more intuitive than MHz for typical offsets like 600 kHz or 5000 kHz)
+        let offset_khz = mem.offset as f64 / 1000.0;
+        format!("{:.3}", offset_khz).trim_end_matches('0').trim_end_matches('.').to_string()
     } else {
         String::new()
     };
@@ -1056,6 +1096,18 @@ fn memory_to_row_strings(mem: &Memory, bank_names: &[String]) -> Vec<String> {
 pub extern "C" fn get_memory_count() -> usize {
     let data = MEMORY_DATA.lock().unwrap();
     data.as_ref().map(|state| state.memories.len()).unwrap_or(0)
+}
+
+/// FFI: Get the memory channel number for a specific row
+#[no_mangle]
+pub extern "C" fn get_memory_number_at_row(row: usize) -> u32 {
+    let data = MEMORY_DATA.lock().unwrap();
+    if let Some(state) = data.as_ref() {
+        if row < state.memories.len() {
+            return state.memories[row].number;
+        }
+    }
+    0
 }
 
 /// FFI: Get data for a specific row

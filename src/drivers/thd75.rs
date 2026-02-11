@@ -223,7 +223,15 @@ impl RawMemory {
 
         // Tuning step and mode
         bytes[8] = self.tuning_step & 0x0F;
-        bytes[9] = ((self.mode & 0x07) << 1) | if self.narrow { 0x08 } else { 0x00 };
+        // For DV mode (mode=1), set bit 4 (0x10) as DV indicator
+        // For other modes, encode in bits 1-3
+        bytes[9] = if self.mode == 1 {
+            // DV mode: set bit 4 (DV indicator)
+            0x10 | if self.narrow { 0x08 } else { 0x00 }
+        } else {
+            // Other modes: encode in bits 1-3
+            ((self.mode & 0x07) << 1) | if self.narrow { 0x08 } else { 0x00 }
+        };
 
         // Byte 10: duplex in bits 0-1, other flags in higher bits
         bytes[10] = self.duplex.to_bits() // Bits 0-1: duplex
