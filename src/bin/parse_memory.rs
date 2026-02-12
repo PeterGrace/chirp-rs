@@ -9,6 +9,7 @@
 //! - Raw memory/bank data (with --raw flag)
 
 use chirp_rs::drivers::thd75::THD75Radio;
+use chirp_rs::drivers::uv5r::UV5RRadio;
 use chirp_rs::drivers::{CloneModeRadio, Radio};
 use chirp_rs::formats::img::load_img;
 use chirp_rs::memmap::MemoryMap;
@@ -19,6 +20,7 @@ struct Args {
     file: String,
     filter: Option<String>,
     show_raw: bool,
+    radio_type: Option<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -37,52 +39,75 @@ fn main() -> anyhow::Result<()> {
     }
     println!("Memory map size: {} bytes\n", mmap.len());
 
-    // Create radio driver
-    let mut radio = THD75Radio::new();
-    radio.process_mmap(&mmap)?;
+    // Determine which driver to use based on --radio arg, metadata, or default
+    let (vendor, model) = if let Some(ref radio) = args.radio_type {
+        // Use explicit radio type from command line
+        match radio.to_lowercase().as_str() {
+            "uv5r" | "uv-5r" => ("Baofeng".to_string(), "UV-5R".to_string()),
+            "thd75" | "th-d75" => ("Kenwood".to_string(), "TH-D75".to_string()),
+            "thd74" | "th-d74" => ("Kenwood".to_string(), "TH-D74".to_string()),
+            _ => {
+                eprintln!("Unknown radio type: {}", radio);
+                eprintln!("Supported types: uv5r, thd75, thd74");
+                std::process::exit(1);
+            }
+        }
+    } else if !metadata.vendor.is_empty() {
+        // Use metadata from .img file
+        (metadata.vendor.clone(), metadata.model.clone())
+    } else {
+        // Auto-detect based on file size or default to TH-D75
+        if mmap.len() <= 0x2000 {
+            // Small file, likely UV-5R (6152 bytes = 0x1808)
+            println!("Note: Auto-detected UV-5R based on file size. Use --radio to override.");
+            ("Baofeng".to_string(), "UV-5R".to_string())
+        } else {
+            // Large file, likely TH-D75
+            ("Kenwood".to_string(), "TH-D75".to_string())
+        }
+    };
 
-    // Display bank names for .img files
-    if !metadata.vendor.is_empty() {
+    // Create appropriate radio driver and get memories
+    let (memories, has_banks) = match (vendor.to_lowercase().as_str(), model.as_str()) {
+        ("baofeng", "UV-5R") => {
+            let mut radio = UV5RRadio::new();
+            radio.process_mmap(&mmap)?;
+            let mems = get_memories_filtered(&mut radio, &args)?;
+            (mems, false) // UV-5R has no banks
+        }
+        ("kenwood", "TH-D75") | ("kenwood", "TH-D74") | _ => {
+            let mut radio = THD75Radio::new();
+            radio.process_mmap(&mmap)?;
+            let mems = get_memories_filtered(&mut radio, &args)?;
+            (mems, true) // TH-D75 has banks
+        }
+    };
+
+    // Display bank names for radios that have them
+    if !metadata.vendor.is_empty() && has_banks {
         print_bank_names(&mmap);
     }
 
-    // Parse and display memories based on filter
+    // Display memories
     match args.filter.as_deref() {
         None => {
             // Show all non-empty memories
             println!("=== All Non-Empty Memories ===\n");
-            let memories = radio.get_memories()?;
-
-            // Filter out empty memories for display
             let non_empty: Vec<_> = memories.iter().filter(|m| !m.empty).collect();
             println!("Found {} non-empty memories\n", non_empty.len());
 
             for mem in non_empty {
-                print_memory(mem, Some(&mmap), args.show_raw);
+                print_memory(mem, Some(&mmap), args.show_raw, &vendor, &model);
             }
         }
-        Some(range) if range.contains('-') => {
-            // Range like "32-50"
-            let parts: Vec<&str> = range.split('-').collect();
-            let start: u32 = parts[0].parse()?;
-            let end: u32 = parts[1].parse()?;
-
-            println!("=== Memories {} to {} ===\n", start, end);
-            for num in start..=end {
-                match radio.get_memory(num)? {
-                    Some(mem) => print_memory(&mem, Some(&mmap), args.show_raw),
-                    None => println!("Memory #{}: <empty>\n", num),
+        Some(_) => {
+            // Single memory or range
+            for mem in &memories {
+                if mem.empty {
+                    println!("Memory #{}: <empty>\n", mem.number);
+                } else {
+                    print_memory(mem, Some(&mmap), args.show_raw, &vendor, &model);
                 }
-            }
-        }
-        Some(num_str) => {
-            // Single memory number
-            let num: u32 = num_str.parse()?;
-            println!("=== Memory #{} ===\n", num);
-
-            match radio.get_memory(num)? {
-                Some(mem) => print_memory(&mem, Some(&mmap), args.show_raw),
-                None => println!("Memory #{}: <empty>", num),
             }
         }
     }
@@ -90,25 +115,88 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Get memories based on filter (reusable for any driver)
+fn get_memories_filtered(
+    radio: &mut dyn Radio,
+    args: &Args,
+) -> anyhow::Result<Vec<chirp_rs::core::Memory>> {
+    match args.filter.as_deref() {
+        None => {
+            // Get all memories
+            Ok(radio.get_memories()?)
+        }
+        Some(range) if range.contains('-') => {
+            // Range like "32-50"
+            let parts: Vec<&str> = range.split('-').collect();
+            let start: u32 = parts[0].parse()?;
+            let end: u32 = parts[1].parse()?;
+
+            let mut memories = Vec::new();
+            for num in start..=end {
+                // Create an empty memory placeholder if memory doesn't exist
+                match radio.get_memory(num)? {
+                    Some(mem) => memories.push(mem),
+                    None => {
+                        let mut empty_mem = chirp_rs::core::Memory::new(num);
+                        empty_mem.empty = true;
+                        memories.push(empty_mem);
+                    }
+                }
+            }
+            Ok(memories)
+        }
+        Some(num_str) => {
+            // Single memory number
+            let num: u32 = num_str.parse()?;
+            match radio.get_memory(num)? {
+                Some(mem) => Ok(vec![mem]),
+                None => {
+                    let mut empty_mem = chirp_rs::core::Memory::new(num);
+                    empty_mem.empty = true;
+                    Ok(vec![empty_mem])
+                }
+            }
+        }
+    }
+}
+
 /// Parse command line arguments
 fn parse_args() -> anyhow::Result<Args> {
     let args: Vec<String> = env::args().collect();
     let mut show_raw = false;
+    let mut radio_type = None;
     let mut positional = vec![];
+    let mut i = 1;
 
-    // Separate flags from positional arguments
-    for arg in &args[1..] {
-        if arg == "--raw" {
-            show_raw = true;
-        } else if arg == "--help" || arg == "-h" {
-            print_usage(&args[0]);
-            std::process::exit(0);
-        } else if !arg.starts_with('-') {
-            positional.push(arg.clone());
-        } else {
-            eprintln!("Unknown flag: {}", arg);
-            print_usage(&args[0]);
-            std::process::exit(1);
+    // Parse flags and options
+    while i < args.len() {
+        match args[i].as_str() {
+            "--raw" => {
+                show_raw = true;
+                i += 1;
+            }
+            "--radio" => {
+                if i + 1 >= args.len() {
+                    eprintln!("Error: --radio requires a value");
+                    print_usage(&args[0]);
+                    std::process::exit(1);
+                }
+                radio_type = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--help" | "-h" => {
+                print_usage(&args[0]);
+                std::process::exit(0);
+            }
+            arg if arg.starts_with('-') => {
+                eprintln!("Unknown flag: {}", arg);
+                print_usage(&args[0]);
+                std::process::exit(1);
+            }
+            _ => {
+                positional.push(args[i].clone());
+                i += 1;
+            }
         }
     }
 
@@ -121,6 +209,7 @@ fn parse_args() -> anyhow::Result<Args> {
         file: positional[0].clone(),
         filter: positional.get(1).cloned(),
         show_raw,
+        radio_type,
     })
 }
 
@@ -129,8 +218,9 @@ fn print_usage(program: &str) {
     eprintln!("Usage: {} [OPTIONS] <file> [memory_number|range]", program);
     eprintln!();
     eprintln!("Options:");
-    eprintln!("  --raw          Show raw memory/bank data (debug mode)");
-    eprintln!("  -h, --help     Show this help message");
+    eprintln!("  --raw               Show raw memory/bank data (debug mode)");
+    eprintln!("  --radio <type>      Force radio type (uv5r, thd75) for raw files");
+    eprintln!("  -h, --help          Show this help message");
     eprintln!();
     eprintln!("Examples:");
     eprintln!(
@@ -138,7 +228,7 @@ fn print_usage(program: &str) {
         program
     );
     eprintln!(
-        "  {} radio.d75                    # Works with raw dumps too",
+        "  {} radio.bin --radio uv5r       # Parse raw UV-5R dump",
         program
     );
     eprintln!(
@@ -197,7 +287,13 @@ fn get_bank_name(mmap: &MemoryMap, bank_index: usize) -> Option<String> {
 }
 
 /// Print memory information with optional bank name and raw data
-fn print_memory(mem: &chirp_rs::core::Memory, mmap: Option<&MemoryMap>, show_raw: bool) {
+fn print_memory(
+    mem: &chirp_rs::core::Memory,
+    mmap: Option<&MemoryMap>,
+    show_raw: bool,
+    vendor: &str,
+    model: &str,
+) {
     println!("Memory #{}: \"{}\"", mem.number, mem.name);
     println!(
         "  Frequency:    {} Hz ({:.6} MHz)",
@@ -274,15 +370,22 @@ fn print_memory(mem: &chirp_rs::core::Memory, mmap: Option<&MemoryMap>, show_raw
     );
     println!("  Tuning Step:  {} kHz", mem.tuning_step);
 
-    // Show bank info with name if available
-    if let Some(map) = mmap {
-        if let Some(bank_name) = get_bank_name(map, mem.bank as usize) {
-            println!("  Bank:         {} (\"{}\")", mem.bank, bank_name);
+    // Show bank info with name if available (only for radios with banks)
+    let has_banks = matches!(
+        (vendor.to_lowercase().as_str(), model),
+        ("kenwood", "TH-D75") | ("kenwood", "TH-D74")
+    );
+
+    if has_banks {
+        if let Some(map) = mmap {
+            if let Some(bank_name) = get_bank_name(map, mem.bank as usize) {
+                println!("  Bank:         {} (\"{}\")", mem.bank, bank_name);
+            } else {
+                println!("  Bank:         {}", mem.bank);
+            }
         } else {
             println!("  Bank:         {}", mem.bank);
         }
-    } else {
-        println!("  Bank:         {}", mem.bank);
     }
 
     println!();
@@ -290,8 +393,11 @@ fn print_memory(mem: &chirp_rs::core::Memory, mmap: Option<&MemoryMap>, show_raw
     // Show raw data if requested
     if show_raw {
         if let Some(map) = mmap {
-            print_raw_bank_data(map, mem.number);
-            print_raw_memory_data(map, mem.number);
+            // Only show bank data for radios with banks
+            if has_banks {
+                print_raw_bank_data(map, mem.number);
+            }
+            print_raw_memory_data(map, mem.number, vendor, model);
         }
     }
 }
@@ -327,18 +433,30 @@ fn print_raw_bank_data(mmap: &MemoryMap, number: u32) {
 }
 
 /// Print raw memory data
-fn print_raw_memory_data(mmap: &MemoryMap, number: u32) {
-    // Calculate offset using correct formula: groups of 6 memories with 40-byte size
-    let group = (number / 6) as usize;
-    let index = (number % 6) as usize;
-    let offset = 0x4000 + (group * (6 * 40 + 16)) + (index * 40);
-
+fn print_raw_memory_data(mmap: &MemoryMap, number: u32, vendor: &str, model: &str) {
     println!("  Raw Memory Data:");
+
+    // Calculate offset and size based on radio type
+    let (offset, mem_size) = match (vendor.to_lowercase().as_str(), model) {
+        ("baofeng", "UV-5R") => {
+            // UV-5R: 16 bytes per memory, sequential at MEMORY_BASE (0x0008)
+            let offset = 0x0008 + (number as usize * 16);
+            (offset, 16)
+        }
+        _ => {
+            // TH-D75: 40 bytes per memory, groups of 6 with padding
+            let group = (number / 6) as usize;
+            let index = (number % 6) as usize;
+            let offset = 0x4000 + (group * (6 * 40 + 16)) + (index * 40);
+            (offset, 40)
+        }
+    };
+
     println!("  Memory offset: 0x{:04X}", offset);
 
-    // Read first 40 bytes (full memory structure)
-    if let Ok(bytes) = mmap.get(offset, Some(40)) {
-        print!("  First 40 bytes:   ");
+    // Read memory bytes
+    if let Ok(bytes) = mmap.get(offset, Some(mem_size)) {
+        print!("  First {} bytes:   ", mem_size);
         for (i, byte) in bytes.iter().enumerate() {
             print!("{:02X} ", byte);
             if i == 7 || i == 15 || i == 23 || i == 31 {
@@ -347,7 +465,7 @@ fn print_raw_memory_data(mmap: &MemoryMap, number: u32) {
         }
         println!();
 
-        // Show as ASCII for name fields
+        // Show as ASCII
         print!("  ASCII:            ");
         for byte in bytes {
             let c = if byte.is_ascii_graphic() || *byte == b' ' {
@@ -359,24 +477,80 @@ fn print_raw_memory_data(mmap: &MemoryMap, number: u32) {
         }
         println!("\n");
 
-        // Decode key fields
+        // Decode key fields (BCD frequencies)
         if bytes.len() >= 8 {
-            let freq = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-            let offset_val = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
+            let freq_bcd = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+            let tx_bcd = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
 
-            if freq != 0 && freq != 0xFFFFFFFF {
-                println!(
-                    "  Decoded freq:     {} Hz ({:.6} MHz)",
-                    freq,
-                    freq as f64 / 1_000_000.0
-                );
+            // For UV-5R, frequencies are BCD encoded (multiply by 10)
+            // For TH-D75, frequencies are already in Hz
+            let is_uv5r = vendor.to_lowercase() == "baofeng" && model == "UV-5R";
+
+            if freq_bcd != 0 && freq_bcd != 0xFFFFFFFF {
+                if is_uv5r {
+                    // Try to decode as BCD
+                    use chirp_rs::bitwise::bcd_to_int;
+                    match bcd_to_int(&freq_bcd.to_le_bytes(), true) {
+                        Ok(value) => {
+                            let freq = value * 10;
+                            println!(
+                                "  RX freq (BCD):    {:08X} = {} Hz ({:.6} MHz)",
+                                freq_bcd,
+                                freq,
+                                freq as f64 / 1_000_000.0
+                            );
+                        }
+                        Err(e) => {
+                            println!("  RX freq (BCD):    {:08X} (invalid BCD: {})", freq_bcd, e);
+                        }
+                    }
+                } else {
+                    println!(
+                        "  RX freq:          {} Hz ({:.6} MHz)",
+                        freq_bcd,
+                        freq_bcd as f64 / 1_000_000.0
+                    );
+                }
             }
-            if offset_val != 0 && offset_val != 0xFFFFFFFF {
-                println!(
-                    "  Decoded offset:   {} Hz ({:.2} MHz)",
-                    offset_val,
-                    offset_val as f64 / 1_000_000.0
-                );
+
+            if tx_bcd != 0 && tx_bcd != 0xFFFFFFFF {
+                if is_uv5r {
+                    use chirp_rs::bitwise::bcd_to_int;
+                    match bcd_to_int(&tx_bcd.to_le_bytes(), true) {
+                        Ok(value) => {
+                            let freq = value * 10;
+                            println!(
+                                "  TX freq (BCD):    {:08X} = {} Hz ({:.6} MHz)",
+                                tx_bcd,
+                                freq,
+                                freq as f64 / 1_000_000.0
+                            );
+                        }
+                        Err(e) => {
+                            println!("  TX freq (BCD):    {:08X} (invalid BCD: {})", tx_bcd, e);
+                        }
+                    }
+                } else {
+                    println!(
+                        "  TX freq:          {} Hz ({:.6} MHz)",
+                        tx_bcd,
+                        tx_bcd as f64 / 1_000_000.0
+                    );
+                }
+            }
+        }
+
+        // Show name location for UV-5R
+        if vendor.to_lowercase() == "baofeng" && model == "UV-5R" {
+            let name_offset = 0x1008 + (number as usize * 16);
+            if let Ok(name_bytes) = mmap.get(name_offset, Some(7)) {
+                let name = String::from_utf8_lossy(name_bytes)
+                    .replace('\u{ffff}', " ")
+                    .trim_end()
+                    .to_string();
+                println!("\n  Name offset:      0x{:04X}", name_offset);
+                println!("  Name bytes:       {:02X?}", name_bytes);
+                println!("  Name string:      \"{}\"", name);
             }
         }
 

@@ -3,7 +3,7 @@
 
 use crate::core::Memory;
 use crate::drivers::{get_driver, init_drivers, list_drivers};
-use crate::formats::{load_img, save_img};
+use crate::formats::load_img;
 use cpp::cpp;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -39,6 +39,9 @@ cpp! {{
     #include <QtCore/QString>
     #include <QtCore/QStringList>
     #include <QtCore/QTimer>
+    #include <QtCore/QJsonDocument>
+    #include <QtCore/QJsonObject>
+    #include <QtCore/QJsonArray>
 
     // C-compatible row data structure
     struct RowData {
@@ -78,13 +81,14 @@ cpp! {{
         const char* update_memory(size_t row, uint64_t freq, const char* name,
                                  const char* duplex, uint64_t offset, const char* mode,
                                  float tuning_step, const char* tmode, float rtone, float ctone,
-                                 uint8_t bank, const char* urcall, const char* rpt1call,
-                                 const char* rpt2call);
+                                 uint8_t bank, const char* power, const char* urcall,
+                                 const char* rpt1call, const char* rpt2call);
         const char* get_vendors();
         const char* get_models_for_vendor(const char* vendor);
         const char* get_serial_ports();
         const char* get_ctcss_tones();
         const char* get_bank_names();
+        const char* get_radio_features();
         const char* download_from_radio(const char* vendor, const char* model, const char* port);
         void start_download_async(const char* vendor, const char* model, const char* port);
         int get_download_progress(int* out_current, int* out_total, const char** out_message);
@@ -698,6 +702,18 @@ cpp! {{
         // Get current row data
         RowData data = get_memory_row(row);
 
+        // Get radio features
+        QString featuresStr = QString::fromUtf8(get_radio_features());
+        QJsonDocument featuresDoc = QJsonDocument::fromJson(featuresStr.toUtf8());
+        QJsonObject featuresObj = featuresDoc.object();
+        bool hasVariablePower = featuresObj["has_variable_power"].toBool();
+        bool hasBank = featuresObj["has_bank"].toBool();
+        QJsonArray powerLevelsArray = featuresObj["power_levels"].toArray();
+        QStringList powerLevels;
+        for (const QJsonValue& val : powerLevelsArray) {
+            powerLevels.append(val.toString());
+        }
+
         // Create dialog
         QDialog dialog(parent);
         dialog.setWindowTitle(QString("Edit Memory %1").arg(QString::fromUtf8(data.loc)));
@@ -720,6 +736,17 @@ cpp! {{
         QComboBox* tuningStepCombo = new QComboBox();
         tuningStepCombo->addItems({"5.0", "6.25", "8.33", "9.0", "10.0", "12.5", "15.0", "20.0", "25.0", "30.0", "50.0", "100.0"});
         tuningStepCombo->setCurrentText(QString::fromUtf8(data.tuning_step));
+
+        // Power selection
+        QComboBox* powerCombo = new QComboBox();
+        if (!powerLevels.isEmpty()) {
+            powerCombo->addItems(powerLevels);
+            // Set current power level
+            QString powerStr = QString::fromUtf8(data.power);
+            if (!powerStr.isEmpty()) {
+                powerCombo->setCurrentText(powerStr);
+            }
+        }
 
         QComboBox* tmodeCombo = new QComboBox();
         tmodeCombo->addItems({"", "Tone", "TSQL", "DTCS", "Cross"});
@@ -778,6 +805,13 @@ cpp! {{
         layout->addRow("Mode:", modeCombo);
         layout->addRow("Tuning Step (kHz):", tuningStepCombo);
 
+        // Power field (conditionally shown)
+        QWidget* powerWidget = new QWidget();
+        QFormLayout* powerLayout = new QFormLayout(powerWidget);
+        powerLayout->setContentsMargins(0, 0, 0, 0);
+        powerLayout->addRow("Power:", powerCombo);
+        layout->addRow(powerWidget);
+
         // Tone fields (hidden for DV mode)
         QWidget* toneWidget = new QWidget();
         QFormLayout* toneLayout = new QFormLayout(toneWidget);
@@ -796,13 +830,20 @@ cpp! {{
         dstarLayout->addRow("RPT2CALL:", rpt2Edit);
         layout->addRow(dstarWidget);
 
-        layout->addRow("Bank:", bankCombo);
+        // Bank field (conditionally shown)
+        QWidget* bankWidget = new QWidget();
+        QFormLayout* bankLayout = new QFormLayout(bankWidget);
+        bankLayout->setContentsMargins(0, 0, 0, 0);
+        bankLayout->addRow("Bank:", bankCombo);
+        layout->addRow(bankWidget);
 
-        // Show/hide fields based on mode
+        // Show/hide fields based on mode and radio features
         auto updateFieldVisibility = [=]() {
             bool isDV = modeCombo->currentText() == "DV";
             toneWidget->setVisible(!isDV);
             dstarWidget->setVisible(isDV);
+            powerWidget->setVisible(hasVariablePower);
+            bankWidget->setVisible(hasBank);
         };
 
         // Initial visibility
@@ -875,6 +916,7 @@ cpp! {{
                 rtone,
                 ctone,
                 static_cast<uint8_t>(bankCombo->currentData().toInt()),
+                powerCombo->currentText().toUtf8().constData(),
                 urcallEdit->text().toUtf8().constData(),
                 rpt1Edit->text().toUtf8().constData(),
                 rpt2Edit->text().toUtf8().constData()
@@ -973,6 +1015,10 @@ struct AppState {
     band_display_names: std::collections::HashMap<u8, String>,
     /// Bank/Group organization for radios with banks/groups (bank_num -> memory indices)
     bank_groups: std::collections::HashMap<u8, Vec<usize>>,
+    /// Radio vendor (e.g., "Baofeng", "Kenwood")
+    radio_vendor: Option<String>,
+    /// Radio model (e.g., "UV-5R", "TH-D75")
+    radio_model: Option<String>,
 }
 
 /// Global storage for memory data and C strings
@@ -991,7 +1037,8 @@ struct DownloadProgress {
 enum DownloadState {
     Idle,
     InProgress(DownloadProgress),
-    Complete(Result<(Vec<Memory>, crate::memmap::MemoryMap), String>),
+    Complete(Result<(Vec<Memory>, crate::memmap::MemoryMap, String, String), String>),
+    // Complete contains: (memories, mmap, vendor, model) on success, or error message
 }
 
 /// Global storage for async download state
@@ -1495,6 +1542,8 @@ fn set_memory_data(memories: Vec<Memory>, bank_names: Vec<String>) {
         band_groups,
         band_display_names,
         bank_groups,
+        radio_vendor: None,
+        radio_model: None,
     });
 }
 
@@ -1530,6 +1579,8 @@ fn clear_memory_data() {
         band_groups: std::collections::HashMap::new(),
         band_display_names: std::collections::HashMap::new(),
         bank_groups: std::collections::HashMap::new(),
+        radio_vendor: None,
+        radio_model: None,
     });
 }
 
@@ -1595,6 +1646,24 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
             .unwrap_or_else(|_| (0..10).map(|i| format!("Bank {}", i)).collect());
 
         (mems, names)
+    } else if driver_info.model == "UV-5R" {
+        use crate::drivers::{uv5r::UV5RRadio, Radio};
+        let mut radio = UV5RRadio::new();
+        radio.mmap = Some(mmap.clone());
+
+        let mems = match radio.get_memories() {
+            Ok(mems) => mems,
+            Err(e) => {
+                let err_msg = format!("Failed to parse memories: {}", e);
+                tracing::error!("load_file: {}", err_msg);
+                return CString::new(err_msg).unwrap().into_raw();
+            }
+        };
+
+        // UV-5R doesn't have banks
+        let names = Vec::new();
+
+        (mems, names)
     } else {
         let err_msg = format!("Unsupported radio model: {}", driver_info.model);
         tracing::error!("load_file: {}", err_msg);
@@ -1638,6 +1707,8 @@ pub unsafe extern "C" fn load_file(path: *const c_char) -> *const c_char {
         band_groups,
         band_display_names,
         bank_groups,
+        radio_vendor: Some(vendor.to_string()),
+        radio_model: Some(model.to_string()),
     });
 
     // Return NULL to indicate success
@@ -1680,7 +1751,6 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
         return CString::new(err_msg).unwrap().into_raw();
     }
 
-    use crate::drivers::thd75::THD75Radio;
     use crate::drivers::{CloneModeRadio, Radio};
     use crate::formats::{save_img, Metadata};
 
@@ -1695,38 +1765,83 @@ pub unsafe extern "C" fn save_file(path: *const c_char) -> *const c_char {
         }
     };
 
-    // Create radio and load the base mmap
-    let mut radio = THD75Radio::new();
-    if let Err(e) = radio.process_mmap(&base_mmap) {
-        let err_msg = format!("Failed to process memory map: {}", e);
-        tracing::error!("save_file: {}", err_msg);
-        return CString::new(err_msg).unwrap().into_raw();
-    }
-
-    // Update only non-empty memories
-    // Empty memories should be left as-is in the original mmap
-    for mem in &state.memories {
-        if !mem.empty {
-            if let Err(e) = radio.set_memory(mem) {
-                let err_msg = format!("Failed to update memory #{}: {}", mem.number, e);
-                tracing::error!("save_file: {}", err_msg);
-                return CString::new(err_msg).unwrap().into_raw();
-            }
-        }
-    }
-
-    // Get the updated mmap (preserves bank names and all other data)
-    let mmap = match radio.mmap.clone() {
-        Some(m) => m,
-        None => {
-            let err_msg = "Memory map not available after update";
-            tracing::error!("save_file: {}", err_msg);
-            return CString::new(err_msg).unwrap().into_raw();
+    // Determine vendor and model
+    let (vendor, model) = match (&state.radio_vendor, &state.radio_model) {
+        (Some(v), Some(m)) => (v.clone(), m.clone()),
+        _ => {
+            // Default to TH-D75 for backwards compatibility with existing .img files
+            ("Kenwood".to_string(), "TH-D75".to_string())
         }
     };
 
-    // Create metadata
-    let metadata = Metadata::new("Kenwood", "TH-D75");
+    // Create the correct driver based on vendor/model
+    let mmap = match (vendor.to_lowercase().as_str(), model.as_str()) {
+        ("baofeng", "UV-5R") => {
+            use crate::drivers::uv5r::UV5RRadio;
+
+            let mut radio = UV5RRadio::new();
+            if let Err(e) = radio.process_mmap(&base_mmap) {
+                let err_msg = format!("Failed to process memory map: {}", e);
+                tracing::error!("save_file: {}", err_msg);
+                return CString::new(err_msg).unwrap().into_raw();
+            }
+
+            // Update only non-empty memories
+            for mem in &state.memories {
+                if !mem.empty {
+                    if let Err(e) = radio.set_memory(mem) {
+                        let err_msg = format!("Failed to update memory #{}: {}", mem.number, e);
+                        tracing::error!("save_file: {}", err_msg);
+                        return CString::new(err_msg).unwrap().into_raw();
+                    }
+                }
+            }
+
+            // Get the updated mmap
+            match radio.mmap {
+                Some(m) => m,
+                None => {
+                    let err_msg = "Radio driver lost memory map";
+                    tracing::error!("save_file: {}", err_msg);
+                    return CString::new(err_msg).unwrap().into_raw();
+                }
+            }
+        }
+        ("kenwood", "TH-D75") | ("kenwood", "TH-D74") | _ => {
+            use crate::drivers::thd75::THD75Radio;
+
+            let mut radio = THD75Radio::new();
+            if let Err(e) = radio.process_mmap(&base_mmap) {
+                let err_msg = format!("Failed to process memory map: {}", e);
+                tracing::error!("save_file: {}", err_msg);
+                return CString::new(err_msg).unwrap().into_raw();
+            }
+
+            // Update only non-empty memories
+            for mem in &state.memories {
+                if !mem.empty {
+                    if let Err(e) = radio.set_memory(mem) {
+                        let err_msg = format!("Failed to update memory #{}: {}", mem.number, e);
+                        tracing::error!("save_file: {}", err_msg);
+                        return CString::new(err_msg).unwrap().into_raw();
+                    }
+                }
+            }
+
+            // Get the updated mmap
+            match radio.mmap.clone() {
+                Some(m) => m,
+                None => {
+                    let err_msg = "Memory map not available after update";
+                    tracing::error!("save_file: {}", err_msg);
+                    return CString::new(err_msg).unwrap().into_raw();
+                }
+            }
+        }
+    };
+
+    // Create metadata with actual vendor/model
+    let metadata = Metadata::new(&vendor, &model);
 
     // Save to file
     if let Err(e) = save_img(&path, &mmap, &metadata) {
@@ -1851,6 +1966,8 @@ pub unsafe extern "C" fn import_from_csv(path: *const c_char) -> *const c_char {
         band_groups,
         band_display_names,
         bank_groups,
+        radio_vendor: None,
+        radio_model: None,
     });
 
     // Return NULL to indicate success
@@ -2064,6 +2181,74 @@ pub extern "C" fn get_bank_names() -> *const c_char {
     }
 }
 
+/// FFI: Get radio features (JSON string)
+/// Returns JSON with has_variable_power, has_bank, and power_levels
+#[no_mangle]
+pub extern "C" fn get_radio_features() -> *const c_char {
+    static mut FEATURES_BUF: Option<CString> = None;
+
+    use crate::drivers::Radio;
+    use serde_json::json;
+
+    let data = MEMORY_DATA.lock().unwrap();
+
+    let features_json = if let Some(state) = data.as_ref() {
+        let (vendor, model) = match (&state.radio_vendor, &state.radio_model) {
+            (Some(v), Some(m)) => (v.as_str(), m.as_str()),
+            _ => {
+                // Default to TH-D75 if no radio set
+                ("Kenwood", "TH-D75")
+            }
+        };
+
+        // Get features based on radio type
+        let features = match (vendor, model) {
+            ("Baofeng", "UV-5R") => {
+                use crate::drivers::uv5r::UV5RRadio;
+                let radio = UV5RRadio::new();
+                radio.get_features()
+            }
+            ("Kenwood", "TH-D75") | ("Kenwood", "TH-D74") => {
+                use crate::drivers::thd75::THD75Radio;
+                let radio = THD75Radio::new();
+                radio.get_features()
+            }
+            _ => {
+                // Unknown radio, return defaults
+                use crate::core::features::RadioFeatures;
+                RadioFeatures::default()
+            }
+        };
+
+        // Extract power levels as strings
+        let power_levels: Vec<String> = features
+            .valid_power_levels
+            .iter()
+            .map(|p| p.label().to_string())
+            .collect();
+
+        json!({
+            "has_variable_power": features.has_variable_power,
+            "has_bank": features.has_bank,
+            "power_levels": power_levels
+        })
+        .to_string()
+    } else {
+        // No data loaded, return defaults
+        json!({
+            "has_variable_power": false,
+            "has_bank": true,
+            "power_levels": []
+        })
+        .to_string()
+    };
+
+    unsafe {
+        FEATURES_BUF = Some(CString::new(features_json).unwrap());
+        FEATURES_BUF.as_ref().unwrap().as_ptr()
+    }
+}
+
 /// FFI: Download memories from radio (blocking operation)
 /// Returns NULL on success, or error message on failure
 #[no_mangle]
@@ -2076,6 +2261,10 @@ pub unsafe extern "C" fn download_from_radio(
     let vendor_str = CStr::from_ptr(vendor).to_str().unwrap_or("").to_string();
     let model_str = CStr::from_ptr(model).to_str().unwrap_or("").to_string();
     let port_str = CStr::from_ptr(port).to_str().unwrap_or("").to_string();
+
+    // Clone vendor/model for later use (they'll be moved into async block)
+    let vendor_clone = vendor_str.clone();
+    let model_clone = model_str.clone();
 
     // Create a tokio runtime for the async operation
     let runtime = match tokio::runtime::Runtime::new() {
@@ -2099,15 +2288,28 @@ pub unsafe extern "C" fn download_from_radio(
 
     match result {
         Ok((memories, mmap)) => {
-            // Get bank names from the downloaded mmap
+            // Get bank names from the downloaded mmap using the correct driver
             let bank_names = {
-                use crate::drivers::thd75::THD75Radio;
-                use crate::drivers::{CloneModeRadio, Radio};
-                let mut radio = THD75Radio::new();
-                radio.process_mmap(&mmap).ok();
-                radio
-                    .get_bank_names()
-                    .unwrap_or_else(|_| (0..30).map(|i| format!("Bank {}", i)).collect())
+                use crate::drivers::CloneModeRadio;
+
+                match (vendor_clone.to_lowercase().as_str(), model_clone.as_str()) {
+                    ("baofeng", "UV-5R") => {
+                        // UV-5R doesn't support banks
+                        vec![]
+                    }
+                    ("kenwood", "TH-D75") | ("kenwood", "TH-D74") => {
+                        use crate::drivers::thd75::THD75Radio;
+                        let mut radio = THD75Radio::new();
+                        radio.process_mmap(&mmap).ok();
+                        radio
+                            .get_bank_names()
+                            .unwrap_or_else(|_| (0..30).map(|i| format!("Bank {}", i)).collect())
+                    }
+                    _ => {
+                        // Default: no banks
+                        vec![]
+                    }
+                }
             };
 
             // Convert to CStrings (include all memories, even empty ones)
@@ -2140,6 +2342,8 @@ pub unsafe extern "C" fn download_from_radio(
                 band_groups,
                 band_display_names,
                 bank_groups: bank_groups_map,
+                radio_vendor: Some(vendor_clone),
+                radio_model: Some(model_clone),
             });
 
             // Return NULL to indicate success
@@ -2188,6 +2392,10 @@ pub unsafe extern "C" fn start_download_async(
             }
         };
 
+        // Clone vendor/model for later use in result
+        let vendor_clone = vendor_str.clone();
+        let model_clone = model_str.clone();
+
         // Run the download
         let result = runtime.block_on(async {
             // Progress callback that updates global state
@@ -2204,9 +2412,11 @@ pub unsafe extern "C" fn start_download_async(
                 .await
         });
 
-        // Store result
+        // Store result with vendor/model info
         let mut state = DOWNLOAD_STATE.lock().unwrap();
-        *state = DownloadState::Complete(result);
+        *state = DownloadState::Complete(
+            result.map(|(memories, mmap)| (memories, mmap, vendor_clone, model_clone))
+        );
     });
 }
 
@@ -2266,16 +2476,29 @@ pub extern "C" fn get_download_result() -> *const c_char {
     let result = std::mem::replace(&mut *state, DownloadState::Idle);
 
     match result {
-        DownloadState::Complete(Ok((memories, mmap))) => {
-            // Get bank names from the downloaded mmap
+        DownloadState::Complete(Ok((memories, mmap, vendor, model))) => {
+            // Get bank names from the downloaded mmap using the correct driver
             let bank_names = {
-                use crate::drivers::thd75::THD75Radio;
-                use crate::drivers::{CloneModeRadio, Radio};
-                let mut radio = THD75Radio::new();
-                radio.process_mmap(&mmap).ok();
-                radio
-                    .get_bank_names()
-                    .unwrap_or_else(|_| (0..30).map(|i| format!("Bank {}", i)).collect())
+                use crate::drivers::CloneModeRadio;
+
+                match (vendor.to_lowercase().as_str(), model.as_str()) {
+                    ("baofeng", "UV-5R") => {
+                        // UV-5R doesn't support banks
+                        vec![]
+                    }
+                    ("kenwood", "TH-D75") | ("kenwood", "TH-D74") => {
+                        use crate::drivers::thd75::THD75Radio;
+                        let mut radio = THD75Radio::new();
+                        radio.process_mmap(&mmap).ok();
+                        radio
+                            .get_bank_names()
+                            .unwrap_or_else(|_| (0..30).map(|i| format!("Bank {}", i)).collect())
+                    }
+                    _ => {
+                        // Default: no banks
+                        vec![]
+                    }
+                }
             };
 
             // Convert to CStrings (include all memories, even empty ones)
@@ -2308,6 +2531,8 @@ pub extern "C" fn get_download_result() -> *const c_char {
                 band_groups,
                 band_display_names,
                 bank_groups: bank_groups_map,
+                radio_vendor: Some(vendor),
+                radio_model: Some(model),
             });
 
             // Return NULL to indicate success
@@ -2503,6 +2728,7 @@ pub unsafe extern "C" fn update_memory(
     rtone: f32,
     ctone: f32,
     bank: u8,
+    power: *const c_char,
     urcall: *const c_char,
     rpt1call: *const c_char,
     rpt2call: *const c_char,
@@ -2522,9 +2748,52 @@ pub unsafe extern "C" fn update_memory(
     let duplex_str = CStr::from_ptr(duplex).to_str().unwrap_or("").to_string();
     let mode_str = CStr::from_ptr(mode).to_str().unwrap_or("FM").to_string();
     let tmode_str = CStr::from_ptr(tmode).to_str().unwrap_or("").to_string();
+    let power_str = CStr::from_ptr(power).to_str().unwrap_or("").to_string();
     let urcall_str = CStr::from_ptr(urcall).to_str().unwrap_or("").to_string();
     let rpt1call_str = CStr::from_ptr(rpt1call).to_str().unwrap_or("").to_string();
     let rpt2call_str = CStr::from_ptr(rpt2call).to_str().unwrap_or("").to_string();
+
+    // Parse power level if provided
+    // Match the power label string against the radio's valid power levels
+    let power_level = if !power_str.is_empty() {
+        // Get the radio features to access valid power levels
+        let (vendor, model) = match (&state.radio_vendor, &state.radio_model) {
+            (Some(v), Some(m)) => (v.as_str(), m.as_str()),
+            _ => ("", ""),
+        };
+
+        if !vendor.is_empty() && !model.is_empty() {
+            use crate::drivers::Radio;
+
+            let features = match (vendor, model) {
+                ("Baofeng", "UV-5R") => {
+                    use crate::drivers::uv5r::UV5RRadio;
+                    let radio = UV5RRadio::new();
+                    radio.get_features()
+                }
+                ("Kenwood", "TH-D75") | ("Kenwood", "TH-D74") => {
+                    use crate::drivers::thd75::THD75Radio;
+                    let radio = THD75Radio::new();
+                    radio.get_features()
+                }
+                _ => {
+                    use crate::core::features::RadioFeatures;
+                    RadioFeatures::default()
+                }
+            };
+
+            // Find power level by label
+            features
+                .valid_power_levels
+                .iter()
+                .find(|p| p.label() == power_str)
+                .cloned()
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     // Update the memory
     let mem = &mut state.memories[row];
@@ -2538,6 +2807,7 @@ pub unsafe extern "C" fn update_memory(
     mem.rtone = rtone;
     mem.ctone = ctone;
     mem.bank = bank;
+    mem.power = power_level;
     mem.dv_urcall = urcall_str;
     mem.dv_rpt1call = rpt1call_str;
     mem.dv_rpt2call = rpt2call_str;

@@ -67,6 +67,7 @@ pub async fn download_from_radio(
     // Set DTR and RTS based on radio vendor
     // Kenwood radios need DTR=true, RTS=false to enter programming mode
     // Icom radios need DTR=false, RTS=false (RTS high = transmitting!)
+    // Baofeng radios typically need DTR=false, RTS=false for clone cable
     if vendor.to_lowercase() == "kenwood" {
         tracing::debug!("Setting DTR=true, RTS=false for Kenwood radio");
         port.set_dtr(true)
@@ -83,6 +84,14 @@ pub async fn download_from_radio(
         port.set_rts(false)
             .map_err(|e| format!("Failed to set RTS: {}", e))?;
         tracing::debug!("Icom: DTR=true, RTS=false confirmed");
+    } else if vendor.to_lowercase() == "baofeng" {
+        tracing::debug!("Setting DTR=false, RTS=false for Baofeng radio");
+        // Baofeng clone cables typically don't use DTR/RTS signaling
+        port.set_dtr(false)
+            .map_err(|e| format!("Failed to set DTR: {}", e))?;
+        port.set_rts(false)
+            .map_err(|e| format!("Failed to set RTS: {}", e))?;
+        tracing::debug!("Baofeng: DTR/RTS configured");
     }
 
     // Clear buffers
@@ -108,14 +117,12 @@ pub async fn download_from_radio(
 /// Download from a clone-mode radio (TH-D75, TH-D74)
 async fn download_clone_mode(
     port: &mut SerialPort,
-    _vendor: &str,
-    _model: &str,
+    vendor: &str,
+    model: &str,
     progress_fn: ProgressFn,
 ) -> RadioOpResult<(Vec<Memory>, crate::memmap::MemoryMap)> {
     use crate::drivers::thd75::THD75Radio;
-
-    // Create driver instance
-    let mut driver = THD75Radio::new();
+    use crate::drivers::uv5r::UV5RRadio;
 
     // Create progress callback
     let status_callback = Some(
@@ -124,18 +131,40 @@ async fn download_clone_mode(
         }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
     );
 
-    // Download from radio
-    let mmap = driver
-        .sync_in(port, status_callback)
-        .await
-        .map_err(|e| format!("Download failed: {}", e))?;
-
-    // Parse memories from memmap (driver stores mmap internally)
-    let memories = driver
-        .get_memories()
-        .map_err(|e| format!("Failed to parse memories: {}", e))?;
-
-    Ok((memories, mmap))
+    // Match vendor/model to instantiate the correct driver
+    match (vendor.to_lowercase().as_str(), model) {
+        ("baofeng", "UV-5R") => {
+            tracing::debug!("Creating UV-5R driver instance");
+            let mut driver = UV5RRadio::new();
+            let mmap = driver
+                .sync_in(port, status_callback)
+                .await
+                .map_err(|e| format!("Download failed: {}", e))?;
+            driver
+                .process_mmap(&mmap)
+                .map_err(|e| format!("Failed to process memory map: {}", e))?;
+            let memories = driver
+                .get_memories()
+                .map_err(|e| format!("Failed to parse memories: {}", e))?;
+            Ok((memories, mmap))
+        }
+        ("kenwood", "TH-D75") | ("kenwood", "TH-D74") => {
+            tracing::debug!("Creating TH-D75/TH-D74 driver instance");
+            let mut driver = THD75Radio::new();
+            let mmap = driver
+                .sync_in(port, status_callback)
+                .await
+                .map_err(|e| format!("Download failed: {}", e))?;
+            let memories = driver
+                .get_memories()
+                .map_err(|e| format!("Failed to parse memories: {}", e))?;
+            Ok((memories, mmap))
+        }
+        _ => Err(format!(
+            "Clone mode not implemented for {} {}",
+            vendor, model
+        )),
+    }
 }
 
 /// Download from a command-based radio (IC-9700)
@@ -266,6 +295,7 @@ pub async fn upload_to_radio(
     // Set DTR and RTS based on radio vendor
     // Kenwood radios need DTR=true, RTS=false to enter programming mode
     // Icom radios need DTR=false, RTS=false (RTS high = transmitting!)
+    // Baofeng radios typically need DTR=false, RTS=false for clone cable
     if vendor.to_lowercase() == "kenwood" {
         tracing::debug!("Setting DTR=true, RTS=false for Kenwood radio");
         port.set_dtr(true)
@@ -282,6 +312,14 @@ pub async fn upload_to_radio(
         port.set_rts(false)
             .map_err(|e| format!("Failed to set RTS: {}", e))?;
         tracing::debug!("Icom: DTR=true, RTS=false confirmed");
+    } else if vendor.to_lowercase() == "baofeng" {
+        tracing::debug!("Setting DTR=false, RTS=false for Baofeng radio");
+        // Baofeng clone cables typically don't use DTR/RTS signaling
+        port.set_dtr(false)
+            .map_err(|e| format!("Failed to set DTR: {}", e))?;
+        port.set_rts(false)
+            .map_err(|e| format!("Failed to set RTS: {}", e))?;
+        tracing::debug!("Baofeng: DTR/RTS configured");
     }
 
     // Clear buffers
@@ -306,44 +344,14 @@ pub async fn upload_to_radio(
 /// Uses the mmap from the original download and updates it with the edited memories
 async fn upload_clone_mode(
     port: &mut SerialPort,
-    _vendor: &str,
-    _model: &str,
+    vendor: &str,
+    model: &str,
     mmap: crate::memmap::MemoryMap,
     memories: Vec<Memory>,
     progress_fn: ProgressFn,
 ) -> RadioOpResult<()> {
     use crate::drivers::thd75::THD75Radio;
-
-    // Create driver instance and load the mmap
-    let mut driver = THD75Radio::new();
-    driver
-        .process_mmap(&mmap)
-        .map_err(|e| format!("Failed to process mmap: {}", e))?;
-
-    tracing::info!("Updating memories in mmap...");
-
-    // Update only non-empty memory channels in the mmap
-    // Empty memories should be left as-is in the original mmap
-    for mem in &memories {
-        if mem.number >= 1200 {
-            continue; // Skip invalid memory numbers
-        }
-
-        // Only update non-empty memories to preserve existing data
-        if !mem.empty {
-            driver
-                .set_memory(mem)
-                .map_err(|e| format!("Failed to update memory #{}: {}", mem.number, e))?;
-        }
-    }
-
-    // Get the modified memory map
-    let modified_mmap = driver
-        .mmap
-        .clone()
-        .ok_or_else(|| "Memory map not available after update".to_string())?;
-
-    tracing::info!("Uploading to radio...");
+    use crate::drivers::uv5r::UV5RRadio;
 
     // DTR/RTS already set in upload_to_radio() based on vendor
     // Clear buffers before upload
@@ -351,19 +359,96 @@ async fn upload_clone_mode(
         .map_err(|e| format!("Failed to clear buffers: {}", e))?;
 
     // Create progress callback for upload
+    let progress_fn_clone = progress_fn.clone();
     let status_callback = Some(
         Box::new(move |current: usize, total: usize, message: &str| {
-            progress_fn(current, total, message.to_string());
+            progress_fn_clone(current, total, message.to_string());
         }) as Box<dyn Fn(usize, usize, &str) + Send + Sync>,
     );
 
-    // Upload the modified memory map to radio
-    driver
-        .sync_out(port, &modified_mmap, status_callback)
-        .await
-        .map_err(|e| format!("Upload failed: {}", e))?;
+    // Match vendor/model to instantiate the correct driver
+    match (vendor.to_lowercase().as_str(), model) {
+        ("baofeng", "UV-5R") => {
+            tracing::debug!("Creating UV-5R driver instance for upload");
+            let mut driver = UV5RRadio::new();
+            driver
+                .process_mmap(&mmap)
+                .map_err(|e| format!("Failed to process mmap: {}", e))?;
 
-    Ok(())
+            tracing::info!("Updating memories in mmap...");
+
+            // Update only non-empty memory channels
+            for mem in &memories {
+                if mem.number >= 128 {
+                    continue; // UV-5R has 128 channels (0-127)
+                }
+
+                if !mem.empty {
+                    driver.set_memory(mem).map_err(|e| {
+                        format!("Failed to update memory #{}: {}", mem.number, e)
+                    })?;
+                }
+            }
+
+            // Get the modified memory map
+            let modified_mmap = driver
+                .mmap
+                .clone()
+                .ok_or_else(|| "Memory map not available after update".to_string())?;
+
+            tracing::info!("Uploading to radio...");
+
+            // Upload the modified memory map to radio
+            driver
+                .sync_out(port, &modified_mmap, status_callback)
+                .await
+                .map_err(|e| format!("Upload failed: {}", e))?;
+
+            Ok(())
+        }
+        ("kenwood", "TH-D75") | ("kenwood", "TH-D74") => {
+            tracing::debug!("Creating TH-D75/TH-D74 driver instance for upload");
+            let mut driver = THD75Radio::new();
+            driver
+                .process_mmap(&mmap)
+                .map_err(|e| format!("Failed to process mmap: {}", e))?;
+
+            tracing::info!("Updating memories in mmap...");
+
+            // Update only non-empty memory channels
+            for mem in &memories {
+                if mem.number >= 1200 {
+                    continue; // TH-D75 has 1200 channels
+                }
+
+                if !mem.empty {
+                    driver.set_memory(mem).map_err(|e| {
+                        format!("Failed to update memory #{}: {}", mem.number, e)
+                    })?;
+                }
+            }
+
+            // Get the modified memory map
+            let modified_mmap = driver
+                .mmap
+                .clone()
+                .ok_or_else(|| "Memory map not available after update".to_string())?;
+
+            tracing::info!("Uploading to radio...");
+
+            // Upload the modified memory map to radio
+            driver
+                .sync_out(port, &modified_mmap, status_callback)
+                .await
+                .map_err(|e| format!("Upload failed: {}", e))?;
+
+            Ok(())
+        }
+        _ => Err(format!(
+            "Clone mode upload not implemented for {} {}",
+            vendor, model
+        )),
+    }
 }
 
 /// Upload to a command-based radio (IC-9700)
